@@ -1,2 +1,2 @@
-# imperf
-Package for identification of imperfect repeats
+# Imperf
+A Python Package for identification of imperfect repeats
