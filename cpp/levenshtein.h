@@ -283,9 +283,3 @@ void timestamp ( )
   return;
 # undef TIME_SIZE
 }
-
-int main() {
-    int d = levenshtein_distance(4, "AGTC", 4, "ATTC");
-    cout << d << endl;
-    return 0;
-}
