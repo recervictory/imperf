@@ -19,48 +19,45 @@ using namespace chrono;
 namespace utils {
 
     /* Data structure tracking the window sequence */
-    struct seqWindow {
+    struct SequenceWindow {
         string motif = "AAAAAA";
         char nuc = 'A';
-        uint count = 0, cutoff = 0;
-        seqWindow() { reset(); }
-        void reset() { motif = "AAAAAA"; count = cutoff = 0;}
+        uint count = 0;
+        SequenceWindow() { reset(); }
+        void reset() { motif = "AAAAAA"; count = 0;}
         void update(char a) {
-            nuc = a; count += 1; cutoff += 1;
+            nuc = a; count += 1;
             motif = motif.substr(1) + a;
         }
     };
 
     /* Data structure for tracking repeat of a repeat class */
-    struct repeat_tracker {
-        uint start = 0, end = 0;
-        char next_nuc = 'A';
-        string prev_motif   = "AAAAAA";
-        string inter_motif  = "";
-        string insertion    = "";
-        uint mutations = 0;
-        uint interrupt = 1;
-        repeat_tracker() {
-            reset("AAAAAA", 0);
+    struct RepeatTracker {
+        uint start = 0, end = 0;                // start and end of repeat
+        char valid_nuc = 'A';                   // next valid nucleotide
+        string valid_motif   = "AAAAAA";        // last valid continuation
+        string insert    = "";                  // insert sequence
+        uint mutations = 0;                     // number of mutations
+        bool interrupt = true;                  // interruption status
+        RepeatTracker() {
+            initialise("AAAAAA", 0);
         }
-        void reset(string motif, uint position) {
-            start = position; end = position;
-            next_nuc = motif[0];
-            prev_motif = motif;
-            inter_motif = "";
-            insertion = "";
+        void initialise(string motif, uint position) {
+            start = position, end = position;
+            valid_motif = motif;
+            valid_nuc = motif[0];
+            insert = "";
             mutations = 0;
             interrupt = 0;
         }
         void print() {
-            cout << "Start: " << start << "\n";
-            cout << "End: " << end << "\n";
-            cout << "Prev Motif: " << prev_motif << "\n";
-            cout << "Next Nuc: " << next_nuc << "\n";
-            cout << "Inter Motif: " << inter_motif << "\n";
-            cout << "Insertion: " << insertion << "\n";
-            cout << "Mutations: " << mutations << "\n";
-            cout << "Continue: " << !(interrupt) << "\n";
+            cout << "Repeat start:     " << start << "\n";
+            cout << "Repeat end:       " << end << "\n";
+            cout << "Valid motif:      " << valid_motif << "\n";
+            cout << "Valid nucleotide: " << valid_nuc << "\n";
+            cout << "Insertion:        " << insert << "\n";
+            cout << "Mutations:        " << mutations << "\n";
+            cout << "Continue:         " << !(interrupt) << "\n";
         }
     };
 
