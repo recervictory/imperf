@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
                     if (globalRepeatTracker.find(curr_rclass) == globalRepeatTracker.end()) {
                         curr_rclass_first_check = 1;
                         globalRepeatTracker[curr_rclass] = utils::RepeatTracker();
-                        globalRepeatTracker[curr_rclass].initialise(window.motif, position);
+                        globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count);
                     }
 
                     std::unordered_map<string, utils::RepeatTracker>::iterator iter = globalRepeatTracker.begin();
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
                                     // repeat continuation
                                     globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
                                     globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                    globalRepeatTracker[rclass].end = position;
+                                    globalRepeatTracker[rclass].end = window.count;
                                 }
 
                                 else {
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
                                         }
 
                                         if (rclass == curr_rclass) {
-                                            globalRepeatTracker[rclass].initialise(window.motif, position);
+                                            globalRepeatTracker[rclass].initialise(window.motif, position, window.count);
                                         }
                                         else { drop_rclass = 1; }
                                     }
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
                                     else {
                                         globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
                                         globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                        globalRepeatTracker[rclass].end = position;
+                                        globalRepeatTracker[rclass].end = window.count;
                                         globalRepeatTracker[rclass].mutations += d;
                                         globalRepeatTracker[rclass].interrupt = 0;
                                     }
@@ -249,7 +249,7 @@ int main(int argc, char* argv[]) {
                                             }
 
                                             if (rclass == curr_rclass) {
-                                                globalRepeatTracker[rclass].initialise(window.motif, position);
+                                                globalRepeatTracker[rclass].initialise(window.motif, position, window.count);
                                             }
                                             else { drop_rclass = 1; }
                                         }
@@ -265,7 +265,7 @@ int main(int argc, char* argv[]) {
                                                     globalRepeatTracker[rclass].valid_motif = utils::expand_repeat(imotif, plen).substr(plen-motif_size, plen);
                                                 }
                                                 globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                                globalRepeatTracker[rclass].end = position;
+                                                globalRepeatTracker[rclass].end = window.count;
                                                 globalRepeatTracker[rclass].mutations += d;
                                                 globalRepeatTracker[rclass].interrupt = 0;
                                             }
