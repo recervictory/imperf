@@ -52,6 +52,17 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker) {
     // Treating the sequence as actual insert
     if (min_d > s) { min_d = s; }
 
+    // check if insertion is a cyclical variation
+    string tandem = utils::expand_repeat(valid_motif, 2*m);
+    uint cyc_d = tandem.find(insert);
+    if (min_d > cyc_d) {
+        cout << "*** Cyclical variation: "<< tandem.substr(cyc_d, motif_size) << " ***\n";
+        cout << "*** Valid motif: " << tandem.substr(cyc_d + insert.length(), motif_size) << " ***\n";
+    }
+    else if (min_d == cyc_d) {
+        rtracker.print();
+    }
+
     // If minimum mutations are greater than allowed remaining mutations
     if (min_d > remain_muts) {
         terminate = 1;
@@ -182,6 +193,7 @@ int main(int argc, char* argv[]) {
                                     // repeat continuation
                                     globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
                                     globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
+                                    globalRepeatTracker[rclass].repeat += curr_nuc;
                                     globalRepeatTracker[rclass].end = window.count;
                                 }
 
@@ -198,9 +210,16 @@ int main(int argc, char* argv[]) {
                                         uint end   = globalRepeatTracker[rclass].end + insert_len;
                                         uint rlen = end - start;
                                         uint muts = globalRepeatTracker[rclass].mutations + d;
+                                        globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(insert_len);
                                         if (rlen >= 12) {
-                                            cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
-                                            << rlen << "\t" << muts << "\n";
+                                            if (debug) {
+                                                cout << "*** Valid repeat ***\n";
+                                                globalRepeatTracker[rclass].print();
+                                            }
+                                            else {
+                                                cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
+                                                << rlen << "\t" << muts << "\n";
+                                            }
                                         }
 
                                         if (rclass == curr_rclass) {
@@ -213,6 +232,7 @@ int main(int argc, char* argv[]) {
                                         globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
                                         globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
                                         globalRepeatTracker[rclass].end = window.count;
+                                        globalRepeatTracker[rclass].repeat += (globalRepeatTracker[rclass].insert + curr_nuc);
                                         globalRepeatTracker[rclass].mutations += d;
                                         globalRepeatTracker[rclass].interrupt = 0;
                                     }
@@ -243,9 +263,16 @@ int main(int argc, char* argv[]) {
                                             uint end   = globalRepeatTracker[rclass].end + insert_len;
                                             uint rlen = end - start;
                                             uint muts = globalRepeatTracker[rclass].mutations + d;
+                                            globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(insert_len);
                                             if (rlen >= 12) {
-                                                cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
-                                                << rlen << "\t" << muts << "\n";
+                                                if (debug) {
+                                                    cout << "*** Valid repeat ***\n";
+                                                    globalRepeatTracker[rclass].print();
+                                                }
+                                                else {
+                                                    cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
+                                                    << rlen << "\t" << muts << "\n";
+                                                }
                                             }
 
                                             if (rclass == curr_rclass) {
@@ -266,6 +293,7 @@ int main(int argc, char* argv[]) {
                                                 }
                                                 globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
                                                 globalRepeatTracker[rclass].end = window.count;
+                                                globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert;
                                                 globalRepeatTracker[rclass].mutations += d;
                                                 globalRepeatTracker[rclass].interrupt = 0;
                                             }

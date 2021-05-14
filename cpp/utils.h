@@ -36,7 +36,8 @@ namespace utils {
         uint start = 0, end = 0;                // start and end of repeat
         char valid_nuc = 'A';                   // next valid nucleotide
         string valid_motif   = "AAAAAA";        // last valid continuation
-        string insert    = "";                  // insert sequence
+        string insert = "";                     // insert sequence
+        string repeat = "";                     // complete repeat sequence
         uint mutations = 0;                     // number of mutations
         bool interrupt = true;                  // interruption status
         RepeatTracker() {
@@ -46,6 +47,7 @@ namespace utils {
             start = start_pos, end = end_pos;
             valid_motif = motif;
             valid_nuc = motif[0];
+            repeat = motif;
             insert = "";
             mutations = 0;
             interrupt = 0;
@@ -57,6 +59,7 @@ namespace utils {
             cout << "Valid nucleotide: " << valid_nuc << "\n";
             cout << "Insertion:        " << insert << "\n";
             cout << "Mutations:        " << mutations << "\n";
+            cout << "Repeat Sequence:  " << repeat << "\n";
             cout << "Continue:         " << !(interrupt) << "\n";
         }
     };
