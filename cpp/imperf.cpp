@@ -16,11 +16,13 @@ const float fraction_mutations = 0.1;
 uint debug = 0;
 
 vector<uint> insertion_mutations(utils::RepeatTracker rtracker) {
+    if (debug) { cout << "\n*** Insertion ***\n"; }
+
     uint terminate = 0;
 
     uint start = rtracker.start;
     uint end   = rtracker.end;
-    uint rlen  = end - start + motif_size;
+    uint rlen  = end - start;
     uint muts  = rtracker.mutations;
 
     string valid_motif = rtracker.valid_motif;
@@ -33,7 +35,8 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker) {
     uint remain_muts  = threshold_muts - muts;
 
     if (remain_muts == 0) {
-        s = 0; min_d = 0; 
+        if (debug) { cout << "Remaining mutations: 0\n" << "*** Termination ***\n\n" ; }
+        s = 0; min_d = 0; terminate = 1;
         return vector<uint> { min_d, s, terminate };
     }
 
@@ -65,10 +68,15 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker) {
         }
     }
 
+    if (debug) {
+        cout << "Least Mutations: " << min_d << "\nInsert Length: " << s << "\n\n";
+        if (terminate) { cout << "*** Termination ***\n" ; }
+    }
     return vector<uint> { min_d, s, terminate };
 }
 
 vector<uint> extension_mutations(utils::RepeatTracker rtracker) {
+    if (debug) { cout << "\n*** Extension ***\n"; }
     uint terminate = 0;
 
     string valid_motif = rtracker.valid_motif;
@@ -86,11 +94,17 @@ vector<uint> extension_mutations(utils::RepeatTracker rtracker) {
 
     uint start = rtracker.start;
     uint end   = rtracker.end;
-    uint rlen  = end - start + motif_size;
+    uint rlen  = end - start;
     uint muts  = rtracker.mutations;
 
     uint awdmuts_wins = fraction_mutations * (rlen + s);
     uint remain_muts  = awdmuts_wins - muts;
+
+    if (remain_muts == 0) {
+        if (debug) { cout << "Remaining mutations: 0\n" << "*** Termination ***\n\n" ; }
+        s = 0; min_d = 0; terminate = 1;
+        return vector<uint> { min_d, s, terminate };
+    }
 
     if (min_d > remain_muts) {
         terminate = 1;
@@ -110,6 +124,7 @@ vector<uint> extension_mutations(utils::RepeatTracker rtracker) {
         }
     }
 
+    if (debug) { cout << "Least Mutations: " << min_d << "\nInsert Length: " << s << "\n\n"; }
     return vector<uint> { min_d, s , terminate, plen };
 }
 
@@ -166,8 +181,8 @@ int main(int argc, char* argv[]) {
                                     if (debug) { cout << "NN: True\tRC: True" << "\n"; }
                                     // repeat continuation
                                     globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
-                                    globalRepeatTracker[rclass].valid_motif = globalRepeatTracker[rclass].valid_motif[0];
-                                    globalRepeatTracker[rclass].end = window.count;
+                                    globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
+                                    globalRepeatTracker[rclass].end = position;
                                 }
 
                                 else {
@@ -180,7 +195,7 @@ int main(int argc, char* argv[]) {
 
                                     if (terminate) {
                                         uint start = globalRepeatTracker[rclass].start;
-                                        uint end   = globalRepeatTracker[rclass].end + motif_size + insert_len;
+                                        uint end   = globalRepeatTracker[rclass].end + insert_len;
                                         uint rlen = end - start;
                                         uint muts = globalRepeatTracker[rclass].mutations + d;
                                         if (rlen >= 12) {
@@ -189,7 +204,7 @@ int main(int argc, char* argv[]) {
                                         }
 
                                         if (rclass == curr_rclass) {
-                                            globalRepeatTracker[rclass].initialise(window.motif, window.count);
+                                            globalRepeatTracker[rclass].initialise(window.motif, position);
                                         }
                                         else { drop_rclass = 1; }
                                     }
@@ -197,7 +212,7 @@ int main(int argc, char* argv[]) {
                                     else {
                                         globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
                                         globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                        globalRepeatTracker[rclass].end = window.count;
+                                        globalRepeatTracker[rclass].end = position;
                                         globalRepeatTracker[rclass].mutations += d;
                                         globalRepeatTracker[rclass].interrupt = 0;
                                     }
@@ -225,7 +240,7 @@ int main(int argc, char* argv[]) {
 
                                         if (terminate) {
                                             uint start = globalRepeatTracker[rclass].start;
-                                            uint end   = globalRepeatTracker[rclass].end + motif_size + insert_len;
+                                            uint end   = globalRepeatTracker[rclass].end + insert_len;
                                             uint rlen = end - start;
                                             uint muts = globalRepeatTracker[rclass].mutations + d;
                                             if (rlen >= 12) {
@@ -234,7 +249,7 @@ int main(int argc, char* argv[]) {
                                             }
 
                                             if (rclass == curr_rclass) {
-                                                globalRepeatTracker[rclass].initialise(window.motif, window.count);
+                                                globalRepeatTracker[rclass].initialise(window.motif, position);
                                             }
                                             else { drop_rclass = 1; }
                                         }
@@ -250,7 +265,7 @@ int main(int argc, char* argv[]) {
                                                     globalRepeatTracker[rclass].valid_motif = utils::expand_repeat(imotif, plen).substr(plen-motif_size, plen);
                                                 }
                                                 globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                                globalRepeatTracker[rclass].end = window.count;
+                                                globalRepeatTracker[rclass].end = position;
                                                 globalRepeatTracker[rclass].mutations += d;
                                                 globalRepeatTracker[rclass].interrupt = 0;
                                             }
