@@ -40,10 +40,10 @@ namespace utils {
         uint mutations = 0;                     // number of mutations
         bool interrupt = true;                  // interruption status
         RepeatTracker() {
-            initialise("AAAAAA", 0);
+            initialise("AAAAAA", 0, 0);
         }
-        void initialise(string motif, uint position) {
-            start = position, end = position;
+        void initialise(string motif, uint start_pos, uint end_pos) {
+            start = start_pos, end = end_pos;
             valid_motif = motif;
             valid_nuc = motif[0];
             insert = "";
