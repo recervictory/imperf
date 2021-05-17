@@ -34,7 +34,7 @@ namespace utils {
         void update(char a) {
             nuc = a; count += 1;
             sequence = sequence.substr(1) + a;
-            motif = sequence.substr(6);
+            motif = sequence.substr(0, 6);
             next = sequence.substr(6, 6);
         }
     };
@@ -46,6 +46,7 @@ namespace utils {
         string valid_motif   = "AAAAAA";        // last valid continuation
         string insert = "";                     // insert sequence
         string repeat = "";                     // complete repeat sequence
+        string curr_motif = "";                 // current motif in the sequence
         string next_motif = "";                 // next motif in the sequence
         uint mutations = 0;                     // number of mutations
         bool interrupt = true;                  // interruption status
@@ -55,6 +56,7 @@ namespace utils {
         void initialise(string motif, uint start_pos, uint end_pos, string nmotif) {
             start = start_pos, end = end_pos;
             valid_motif = motif;
+            curr_motif = motif;
             next_motif = nmotif;
             valid_nuc = motif[0];
             repeat = motif;
@@ -70,7 +72,8 @@ namespace utils {
             cout << "Insertion:        " << insert << "\n";
             cout << "Mutations:        " << mutations << "\n";
             cout << "Repeat Sequence:  " << repeat << "\n";
-            cout << "Next motif        " << next_motif << "\n";
+            cout << "Current motif:    " << curr_motif << "\n";
+            cout << "Next motif:       " << next_motif << "\n";
             cout << "Continue:         " << !(interrupt) << "\n";
         }
     };

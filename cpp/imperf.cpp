@@ -16,7 +16,6 @@ const float fraction_mutations = 0.1;
 uint debug = 1;
 
 vector<uint> insertion_mutations(utils::RepeatTracker rtracker) {
-    if (debug) { cout << "\n*** Insertion ***\n"; }
 
     uint terminate = 0;
 
@@ -34,63 +33,78 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker) {
     uint threshold_muts = fraction_mutations * (rlen + s);
     uint remain_muts  = threshold_muts - muts;
 
+    if (debug) {
+        cout << "\n*** Insertion " << insert << " ***\n";
+        cout << "*** Remaining mutations: " << remain_muts << " ***\n";
+    }
+
     if (remain_muts == 0) {
-        if (debug) { cout << "Remaining mutations: 0\n" << "*** Termination ***\n\n" ; }
+        if (debug) { cout << "*** Zero Remaining mutations! ***\n*** Termination ***\n\n" ; }
         s = 0; min_d = 0; terminate = 1;
         return vector<uint> { min_d, s, terminate };
     }
 
-    uint refrep_ul = ((s + remain_muts)/m);
+    uint refrep_ul = ((s + remain_muts)/m) + 1;
     uint refrep_ll = 0;
     if (remain_muts < s) { refrep_ll = ((s - remain_muts)/m); }
+    if (debug) { cout << "\n*** Unit(s) Insertions ***\n"; }
     for (uint u = refrep_ll; u <= refrep_ul; u++) {
         string repeat_seq = utils::expand_repeat(valid_motif, u*m);
-        uint d = levenshtein_distance(repeat_seq.length(), repeat_seq, insert.length(), insert);
+        int x = repeat_seq.length();
+        int y = insert.length();
+        int* d_matrix = levenshtein_matrix(repeat_seq.length(), repeat_seq, insert.length(), insert);
+        uint d = (&d_matrix[0])[((x+1)*(y+1))-1];
+        if (debug) { cout << "Comparing:  " << insert << "\t" << repeat_seq << "\tMutations: " << d << "\n"; }
+        if (debug) {
+            cout << "*** Levenshtein Matrix ***\n";
+            for (int j=0; j<((x+1)*(y+1)); j++) {
+                if (repeat_seq.length()>0 && j > 0) {
+                    if (j % (repeat_seq.length()+1) == 0) { cout << "\n"; }
+                }
+                cout << (&d_matrix[0])[j] << " ";
+            }
+            cout << "\n";
+        }
         if (d < min_d) { min_d = d; }
+        int nexpmuts = ((u+1)*m) - s;
+        if (min_d < nexpmuts) {
+            if (debug) { cout << "*** Next expected mutations exceed minimum ***\n"; }
+            break;
+        }
     }
     // If mutations greater than size of insert
     // Treating the sequence as actual insert
     if (min_d > s) { min_d = s; }
 
-    // check if insertion is a cyclical variation
-    string tandem = utils::expand_repeat(valid_motif, 2*m);
-    uint cyc_d = tandem.find(insert);
-    if (min_d >= cyc_d) {
-        string cycle = tandem.substr(cyc_d, motif_size);
-        string cycle_valid = tandem.substr(cyc_d + insert.length() + 1, motif_size);
-        cout << "*** Cyclical variation: "<< cycle << " ***\n";
-        cout << "*** Valid motif: " << cycle_valid << " ***\n";
-        uint cyc_valid_d = levenshtein_distance(motif_size, cycle_valid, motif_size, rtracker.next_motif);
-        uint curr_valid_d = levenshtein_distance(motif_size, valid_motif, motif_size, rtracker.next_motif);
-        if (cyc_valid_d < curr_valid_d) {
-            cout << "*** Change the current valid motif from " << valid_motif << " to " << cycle_valid << " ***\n";
-        }
-        else {
-            cout << "*** Continue the current valid motif " << valid_motif << " ***\n";
-        }
-    }
-    // else if (min_d == cyc_d) {
-    //     rtracker.print();
-    // }
-
     // If minimum mutations are greater than allowed remaining mutations
     if (min_d > remain_muts) {
+        if (debug) { cout << "\n*** Least mutations greater than allowed ***\n" ; }
         terminate = 1;
-        min_d = -1;
-        while (min_d > remain_muts) {
-            insert = insert.substr(0,insert.length()-1);
-            s = insert.length();
-            if (s == 0) { min_d = 0; break; }
-            for (uint u = s-remain_muts; u <= s+remain_muts; u++) {
-                string repeat_seq = utils::expand_repeat(valid_motif, u);
-                uint d = levenshtein_distance(repeat_seq.length(), repeat_seq, insert.length(), insert);
-                if (d < min_d) { min_d = d; }
+        uint max_rlen = end - start + s;
+        // cout << "Maximum Repeat length: " << max_rlen << "\n";
+        if (max_rlen < 12) {
+            s = 0; min_d = 0;
+            if (debug) { cout << "*** Short repeat length ***" ; }
+        }
+        else {
+            min_d = -1;
+            insert += 'N';
+            while (min_d > remain_muts) {
+                insert = insert.substr(0, insert.length()-1);
+                s = insert.length();
+                if (s == 0) { min_d = 0; break; }
+                for (uint u = s-remain_muts; u <= s+remain_muts; u++) {
+                    string repeat_seq = utils::expand_repeat(valid_motif, u);
+                    uint d = levenshtein_distance(repeat_seq.length(), repeat_seq, insert.length(), insert);
+                    if (debug) { cout << "Comparing:  " << insert << "\t" << repeat_seq << "\tMutations: " << d << "\n"; }
+                    if (d < min_d) { min_d = d; }
+                }
             }
         }
     }
 
     if (debug) {
-        cout << "Least Mutations: " << min_d << "\nInsert Length: " << s << "\n\n";
+        cout << "\nLeast Mutations: " << min_d << "\nInsert Length: " << s << "\n\n";
         if (terminate) { cout << "*** Termination ***\n" ; }
     }
     return vector<uint> { min_d, s, terminate };
@@ -133,7 +147,7 @@ vector<uint> extension_mutations(utils::RepeatTracker rtracker) {
         if (remain_muts == 0) { s = 0; min_d = 0; }
         else {
             while (min_d > remain_muts) {
-                insert = insert.substr(0,insert.length()-1);
+                insert = insert.substr(0, insert.length()-1);
                 s = insert.length();
                 if (s == 0) { min_d = 0; break; }
                 for (uint u = s-remain_muts; u <= s+remain_muts; u++) {
@@ -198,6 +212,7 @@ int main(int argc, char* argv[]) {
                             uint rclass_continue = !(globalRepeatTracker[rclass].interrupt);
                             string valid_motif = globalRepeatTracker[rclass].valid_motif;
                             char valid_nuc = globalRepeatTracker[rclass].valid_nuc;
+                            globalRepeatTracker[rclass].curr_motif = window.motif;
 
                             if (curr_nuc == valid_nuc) {
                                 if (rclass_continue) {
@@ -219,10 +234,12 @@ int main(int argc, char* argv[]) {
 
                                     if (terminate) {
                                         uint start = globalRepeatTracker[rclass].start;
-                                        uint end   = globalRepeatTracker[rclass].end + insert_len;
+                                        globalRepeatTracker[rclass].end += insert_len;
+                                        uint end = globalRepeatTracker[rclass].end;
                                         uint rlen = end - start;
-                                        uint muts = globalRepeatTracker[rclass].mutations + d;
-                                        globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(insert_len);
+                                        globalRepeatTracker[rclass].mutations += d;
+                                        uint muts = globalRepeatTracker[rclass].mutations;
+                                        globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
                                         if (rlen >= 12) {
                                             if (debug) {
                                                 cout << "*** Valid repeat ***\n";
@@ -272,10 +289,12 @@ int main(int argc, char* argv[]) {
 
                                         if (terminate) {
                                             uint start = globalRepeatTracker[rclass].start;
-                                            uint end   = globalRepeatTracker[rclass].end + insert_len;
+                                            globalRepeatTracker[rclass].end += insert_len;
+                                            uint end = globalRepeatTracker[rclass].end;
                                             uint rlen = end - start;
-                                            uint muts = globalRepeatTracker[rclass].mutations + d;
-                                            globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(insert_len);
+                                            globalRepeatTracker[rclass].mutations += d;
+                                            uint muts = globalRepeatTracker[rclass].mutations;
+                                            globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
                                             if (rlen >= 12) {
                                                 if (debug) {
                                                     cout << "*** Valid repeat ***\n";
