@@ -183,9 +183,7 @@ int main(int argc, char* argv[]) {
                     uint position = window.count - 2*motif_size;
                     curr_nuc = window.sequence[motif_size-1];
                     if (debug) {
-                        cout << "\n\n******************************  ";
-                        cout << "Position: " << position;
-                        cout << "  ******************************\n";
+                        cout << "\n\n******************************  Position: " << position << "  ******************************\n";
                         cout << "Nucleotide: " << curr_nuc << "\n" << "Motif: " << window.motif << "\n";
                     }
                     string curr_rclass = utils::get_repeat_class(window.motif, rClassMap);
@@ -205,134 +203,180 @@ int main(int argc, char* argv[]) {
                         string rclass = iter->first;
                         globalRepeatTracker[rclass].next_motif = window.next;
                         if (debug) { cout << "\n==========  " << rclass << "  ==========\n"; }
-                        if ((rclass == curr_rclass) && curr_rclass_first_check) {
-                            // First encouter of repeat class
+                        if (rclass == curr_rclass) {
+                            if (curr_rclass_first_check == 0) {
+                                uint rclass_continue = !(globalRepeatTracker[rclass].interrupt);
+                                string valid_motif = globalRepeatTracker[rclass].valid_motif;
+                                char valid_nuc = globalRepeatTracker[rclass].valid_nuc;
+
+                                if (window.motif == valid_motif) {
+                                    if (rclass_continue) {
+                                        if (debug) { cout << "NN: True\tRC: True" << "\n"; }
+                                        // repeat continuation
+                                        globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
+                                        globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
+                                        globalRepeatTracker[rclass].repeat += curr_nuc;
+                                        globalRepeatTracker[rclass].end = window.count - motif_size;
+                                    }
+                                    else {
+                                        if (debug) { cout << "NN: True\tRC: False" << "\n"; }
+                                        // repeat continuation after insertion
+                                        vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass]);
+                                        uint d = insertion_result[0];
+                                        uint insert_len = insertion_result[1];
+                                        uint terminate = insertion_result[2];
+
+                                        if (terminate) {
+                                            uint start = globalRepeatTracker[rclass].start;
+                                            globalRepeatTracker[rclass].end += insert_len;
+                                            uint end = globalRepeatTracker[rclass].end;
+                                            uint rlen = end - start;
+                                            globalRepeatTracker[rclass].mutations += d;
+                                            uint muts = globalRepeatTracker[rclass].mutations;
+                                            globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
+                                            if (rlen >= 12) {
+                                                if (debug) {
+                                                    cout << "*** Valid repeat ***\n";
+                                                    globalRepeatTracker[rclass].print();
+                                                }
+                                                else {
+                                                    cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
+                                                    << rlen << "\t" << muts << "\n";
+                                                }
+                                            }
+
+                                            if (rclass == curr_rclass) {
+                                                globalRepeatTracker[rclass].initialise(window.motif, position, window.count - motif_size, window.next);
+                                            }
+                                            else { drop_rclass = 1; }
+                                        }
+
+                                        else {
+                                            globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
+                                            globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
+                                            globalRepeatTracker[rclass].end = window.count - motif_size;
+                                            globalRepeatTracker[rclass].repeat += (globalRepeatTracker[rclass].insert + curr_nuc);
+                                            globalRepeatTracker[rclass].mutations += d;
+                                            globalRepeatTracker[rclass].interrupt = 0;
+                                        }
+                                    }
+                                }
+                                else {
+                                    if (position < globalRepeatTracker[rclass].end) {
+                                        if (debug) {
+                                            cout << "*** Cycle found mid motif ***\n";
+                                            cout << "*** " << valid_motif << " encountered as " << window.motif << " ***\n";
+                                            globalRepeatTracker[rclass].print();
+                                            cout << "\n";
+                                        }
+                                        globalRepeatTracker[rclass].interrupt = 0;
+                                        globalRepeatTracker[rclass].end = window.count - motif_size;
+                                        globalRepeatTracker[rclass].valid_motif = window.motif.substr(1) + window.motif[0];
+                                    }
+                                    else if (position == globalRepeatTracker[rclass].end) {
+                                        if (debug) {
+                                            cout << "*** Cycle found book ended ***\n";
+                                            cout << "*** " << valid_motif << " encountered as " << window.motif << " ***\n";
+                                            globalRepeatTracker[rclass].print();
+                                            cout << "\n";
+                                        }
+                                        globalRepeatTracker[rclass].interrupt = 0;
+                                        globalRepeatTracker[rclass].end = window.count - motif_size;
+                                        globalRepeatTracker[rclass].valid_motif = window.motif.substr(1) + window.motif[0];
+                                    }
+                                    else {
+                                        if (debug) {
+                                            cout << "*** Cycle found after insertion ***\n";
+                                            cout << "*** " << valid_motif << " encountered as " << window.motif << " ***\n";
+                                            globalRepeatTracker[rclass].print();
+                                            cout << "\n";
+                                        }
+                                        string cycle = "";
+                                        uint c = 1;
+                                        for (; c < motif_size; c++) {
+                                            cycle = valid_motif.substr(c) + valid_motif.substr(0, c);
+                                            if (cycle == window.motif) { break; }
+                                        }
+                                        string insert = globalRepeatTracker[rclass].insert;
+                                        uint s = insert.length();
+                                        cout << "Insert length: " << c << "\n"; 
+                                        if (debug) {
+                                            cout << "*** Match " << insert.substr(0, s-motif_size) << " with " << valid_motif+cycle.substr(motif_size-c) << " ***\n";
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        // if ((rclass == curr_rclass) && curr_rclass_first_check) {
+                        //     // Current repeat class first occurrence
+                        // }
                         else {
                             uint rclass_continue = !(globalRepeatTracker[rclass].interrupt);
                             string valid_motif = globalRepeatTracker[rclass].valid_motif;
                             char valid_nuc = globalRepeatTracker[rclass].valid_nuc;
                             globalRepeatTracker[rclass].curr_motif = window.motif;
 
-                            if (window.motif == valid_motif) {
-                                if (rclass_continue) {
-                                    if (debug) { cout << "NN: True\tRC: True" << "\n"; }
-                                    // repeat continuation
-                                    globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
-                                    globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                    globalRepeatTracker[rclass].repeat += curr_nuc;
-                                    globalRepeatTracker[rclass].end = window.count - motif_size;
-                                }
-
-                                else {
-                                    if (debug) { cout << "NN: True\tRC: False" << "\n"; }
-                                    // repeat continuation after insertion
-                                    vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass]);
-                                    uint d = insertion_result[0];
-                                    uint insert_len = insertion_result[1];
-                                    uint terminate = insertion_result[2];
-
-                                    if (terminate) {
-                                        uint start = globalRepeatTracker[rclass].start;
-                                        globalRepeatTracker[rclass].end += insert_len;
-                                        uint end = globalRepeatTracker[rclass].end;
-                                        uint rlen = end - start;
-                                        globalRepeatTracker[rclass].mutations += d;
-                                        uint muts = globalRepeatTracker[rclass].mutations;
-                                        globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
-                                        if (rlen >= 12) {
-                                            if (debug) {
-                                                cout << "*** Valid repeat ***\n";
-                                                globalRepeatTracker[rclass].print();
-                                            }
-                                            else {
-                                                cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
-                                                << rlen << "\t" << muts << "\n";
-                                            }
-                                        }
-
-                                        if (rclass == curr_rclass) {
-                                            globalRepeatTracker[rclass].initialise(window.motif, position, window.count - motif_size, window.next);
-                                        }
-                                        else { drop_rclass = 1; }
-                                    }
-
-                                    else {
-                                        globalRepeatTracker[rclass].valid_motif = valid_motif.substr(1) + valid_motif[0];
-                                        globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                        globalRepeatTracker[rclass].end = window.count - motif_size;
-                                        globalRepeatTracker[rclass].repeat += (globalRepeatTracker[rclass].insert + curr_nuc);
-                                        globalRepeatTracker[rclass].mutations += d;
-                                        globalRepeatTracker[rclass].interrupt = 0;
-                                    }
-                                }
+                            if (rclass_continue) {
+                                if (debug) { cout << "NN: False\tRC: True" << "\n"; }
+                                globalRepeatTracker[rclass].interrupt = 1;
+                                globalRepeatTracker[rclass].insert = curr_nuc;
+                                globalRepeatTracker[rclass].valid_motif = valid_motif[motif_size-1] + valid_motif.substr(0, motif_size-1);
                             }
 
                             else {
+                                if (debug) { cout << "NN: False\tRC: False" << "\n"; }
+                                globalRepeatTracker[rclass].insert += curr_nuc;
+                                // if (globalRepeatTracker[rclass].insert.length() == motif_size) {
+                                //     if (debug) { cout << "\n+++ Unit extension +++\n"; }
+                                //     vector<uint> extension_result = extension_mutations(globalRepeatTracker[rclass]);
+                                //     uint d = extension_result[0];
+                                //     uint insert_len = extension_result[1];
+                                //     uint terminate = extension_result[2];
+                                //     uint plen = extension_result[3];
 
-                                if (rclass_continue) {
-                                    if (debug) { cout << "NN: False\tRC: True" << "\n"; }
-                                    globalRepeatTracker[rclass].insert = curr_nuc;
-                                    globalRepeatTracker[rclass].valid_motif = globalRepeatTracker[rclass].valid_motif[motif_size-1] + globalRepeatTracker[rclass].valid_motif.substr(0,motif_size-1);
-                                    globalRepeatTracker[rclass].interrupt = 1;
-                                }
+                                //     if (terminate) {
+                                //         uint start = globalRepeatTracker[rclass].start;
+                                //         globalRepeatTracker[rclass].end += insert_len;
+                                //         uint end = globalRepeatTracker[rclass].end;
+                                //         uint rlen = end - start;
+                                //         globalRepeatTracker[rclass].mutations += d;
+                                //         uint muts = globalRepeatTracker[rclass].mutations;
+                                //         globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
+                                //         if (rlen >= 12) {
+                                //             if (debug) {
+                                //                 cout << "*** Valid repeat ***\n";
+                                //                 globalRepeatTracker[rclass].print();
+                                //             }
+                                //             else {
+                                //                 cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
+                                //                 << rlen << "\t" << muts << "\n";
+                                //             }
+                                //         }
 
-                                else {
-                                    if (debug) { cout << "NN: False\tRC: False" << "\n"; }
-                                    globalRepeatTracker[rclass].insert += curr_nuc;
-                                    // if (globalRepeatTracker[rclass].insert.length() == motif_size) {
-                                    //     if (debug) { cout << "\n+++ Unit extension +++\n"; }
-                                    //     vector<uint> extension_result = extension_mutations(globalRepeatTracker[rclass]);
-                                    //     uint d = extension_result[0];
-                                    //     uint insert_len = extension_result[1];
-                                    //     uint terminate = extension_result[2];
-                                    //     uint plen = extension_result[3];
+                                //         if (rclass == curr_rclass) {
+                                //             globalRepeatTracker[rclass].initialise(window.motif, position, window.count - motif_size, window.next);
+                                //         }
+                                //         else { drop_rclass = 1; }
+                                //     }
+                                //     else {
+                                //         uint check = -1;
 
-                                    //     if (terminate) {
-                                    //         uint start = globalRepeatTracker[rclass].start;
-                                    //         globalRepeatTracker[rclass].end += insert_len;
-                                    //         uint end = globalRepeatTracker[rclass].end;
-                                    //         uint rlen = end - start;
-                                    //         globalRepeatTracker[rclass].mutations += d;
-                                    //         uint muts = globalRepeatTracker[rclass].mutations;
-                                    //         globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
-                                    //         if (rlen >= 12) {
-                                    //             if (debug) {
-                                    //                 cout << "*** Valid repeat ***\n";
-                                    //                 globalRepeatTracker[rclass].print();
-                                    //             }
-                                    //             else {
-                                    //                 cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
-                                    //                 << rlen << "\t" << muts << "\n";
-                                    //             }
-                                    //         }
-
-                                    //         if (rclass == curr_rclass) {
-                                    //             globalRepeatTracker[rclass].initialise(window.motif, position, window.count - motif_size, window.next);
-                                    //         }
-                                    //         else { drop_rclass = 1; }
-                                    //     }
-                                    //     else {
-                                    //         uint check = -1;
-
-                                    //         if (d != check) {
-                                    //             if (plen < motif_size) {
-                                    //                 globalRepeatTracker[rclass].valid_motif = valid_motif.substr(plen, valid_motif.length()) + valid_motif.substr(0, plen);
-                                    //             }
-                                    //             else {
-                                    //                 string imotif = globalRepeatTracker[rclass].valid_motif;
-                                    //                 globalRepeatTracker[rclass].valid_motif = utils::expand_repeat(imotif, plen).substr(plen-motif_size, plen);
-                                    //             }
-                                    //             globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                    //             globalRepeatTracker[rclass].end = window.count - motif_size;
-                                    //             globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert;
-                                    //             globalRepeatTracker[rclass].mutations += d;
-                                    //             globalRepeatTracker[rclass].interrupt = 0;
-                                    //         }
-                                    //     }
-                                    // }
-                                }
-
+                                //         if (d != check) {
+                                //             if (plen < motif_size) {
+                                //                 globalRepeatTracker[rclass].valid_motif = valid_motif.substr(plen, valid_motif.length()) + valid_motif.substr(0, plen);
+                                //             }
+                                //             else {
+                                //                 string imotif = globalRepeatTracker[rclass].valid_motif;
+                                //                 globalRepeatTracker[rclass].valid_motif = utils::expand_repeat(imotif, plen).substr(plen-motif_size, plen);
+                                //             }
+                                //             globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
+                                //             globalRepeatTracker[rclass].end = window.count - motif_size;
+                                //             globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert;
+                                //             globalRepeatTracker[rclass].mutations += d;
+                                //             globalRepeatTracker[rclass].interrupt = 0;
+                                //         }
+                                //     }
+                                // }
                             }
                         }
                         if (drop_rclass) { drop_rclasses.push_back(rclass); }
