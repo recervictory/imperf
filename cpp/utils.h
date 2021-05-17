@@ -55,7 +55,7 @@ namespace utils {
         }
         void initialise(string motif, uint start_pos, uint end_pos, string nmotif) {
             start = start_pos, end = end_pos;
-            valid_motif = motif;
+            valid_motif = motif.substr(1) + motif[0];
             curr_motif = motif;
             next_motif = nmotif;
             valid_nuc = motif[0];

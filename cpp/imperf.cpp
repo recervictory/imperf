@@ -214,7 +214,7 @@ int main(int argc, char* argv[]) {
                             char valid_nuc = globalRepeatTracker[rclass].valid_nuc;
                             globalRepeatTracker[rclass].curr_motif = window.motif;
 
-                            if (curr_nuc == valid_nuc) {
+                            if (window.motif == valid_motif) {
                                 if (rclass_continue) {
                                     if (debug) { cout << "NN: True\tRC: True" << "\n"; }
                                     // repeat continuation
@@ -273,63 +273,64 @@ int main(int argc, char* argv[]) {
                                 if (rclass_continue) {
                                     if (debug) { cout << "NN: False\tRC: True" << "\n"; }
                                     globalRepeatTracker[rclass].insert = curr_nuc;
+                                    globalRepeatTracker[rclass].valid_motif = globalRepeatTracker[rclass].valid_motif[motif_size-1] + globalRepeatTracker[rclass].valid_motif.substr(0,motif_size-1);
                                     globalRepeatTracker[rclass].interrupt = 1;
                                 }
 
                                 else {
                                     if (debug) { cout << "NN: False\tRC: False" << "\n"; }
                                     globalRepeatTracker[rclass].insert += curr_nuc;
-                                    if (globalRepeatTracker[rclass].insert.length() == motif_size) {
-                                        if (debug) { cout << "\n+++ Unit extension +++\n"; }
-                                        vector<uint> extension_result = extension_mutations(globalRepeatTracker[rclass]);
-                                        uint d = extension_result[0];
-                                        uint insert_len = extension_result[1];
-                                        uint terminate = extension_result[2];
-                                        uint plen = extension_result[3];
+                                    // if (globalRepeatTracker[rclass].insert.length() == motif_size) {
+                                    //     if (debug) { cout << "\n+++ Unit extension +++\n"; }
+                                    //     vector<uint> extension_result = extension_mutations(globalRepeatTracker[rclass]);
+                                    //     uint d = extension_result[0];
+                                    //     uint insert_len = extension_result[1];
+                                    //     uint terminate = extension_result[2];
+                                    //     uint plen = extension_result[3];
 
-                                        if (terminate) {
-                                            uint start = globalRepeatTracker[rclass].start;
-                                            globalRepeatTracker[rclass].end += insert_len;
-                                            uint end = globalRepeatTracker[rclass].end;
-                                            uint rlen = end - start;
-                                            globalRepeatTracker[rclass].mutations += d;
-                                            uint muts = globalRepeatTracker[rclass].mutations;
-                                            globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
-                                            if (rlen >= 12) {
-                                                if (debug) {
-                                                    cout << "*** Valid repeat ***\n";
-                                                    globalRepeatTracker[rclass].print();
-                                                }
-                                                else {
-                                                    cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
-                                                    << rlen << "\t" << muts << "\n";
-                                                }
-                                            }
+                                    //     if (terminate) {
+                                    //         uint start = globalRepeatTracker[rclass].start;
+                                    //         globalRepeatTracker[rclass].end += insert_len;
+                                    //         uint end = globalRepeatTracker[rclass].end;
+                                    //         uint rlen = end - start;
+                                    //         globalRepeatTracker[rclass].mutations += d;
+                                    //         uint muts = globalRepeatTracker[rclass].mutations;
+                                    //         globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, insert_len);
+                                    //         if (rlen >= 12) {
+                                    //             if (debug) {
+                                    //                 cout << "*** Valid repeat ***\n";
+                                    //                 globalRepeatTracker[rclass].print();
+                                    //             }
+                                    //             else {
+                                    //                 cout << seq_name << "\t" << start << "\t" << end << "\t" << rclass << "\t" \
+                                    //                 << rlen << "\t" << muts << "\n";
+                                    //             }
+                                    //         }
 
-                                            if (rclass == curr_rclass) {
-                                                globalRepeatTracker[rclass].initialise(window.motif, position, window.count - motif_size, window.next);
-                                            }
-                                            else { drop_rclass = 1; }
-                                        }
-                                        else {
-                                            uint check = -1;
+                                    //         if (rclass == curr_rclass) {
+                                    //             globalRepeatTracker[rclass].initialise(window.motif, position, window.count - motif_size, window.next);
+                                    //         }
+                                    //         else { drop_rclass = 1; }
+                                    //     }
+                                    //     else {
+                                    //         uint check = -1;
 
-                                            if (d != check) {
-                                                if (plen < motif_size) {
-                                                    globalRepeatTracker[rclass].valid_motif = valid_motif.substr(plen, valid_motif.length()) + valid_motif.substr(0, plen);
-                                                }
-                                                else {
-                                                    string imotif = globalRepeatTracker[rclass].valid_motif;
-                                                    globalRepeatTracker[rclass].valid_motif = utils::expand_repeat(imotif, plen).substr(plen-motif_size, plen);
-                                                }
-                                                globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                                globalRepeatTracker[rclass].end = window.count - motif_size;
-                                                globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert;
-                                                globalRepeatTracker[rclass].mutations += d;
-                                                globalRepeatTracker[rclass].interrupt = 0;
-                                            }
-                                        }
-                                    }
+                                    //         if (d != check) {
+                                    //             if (plen < motif_size) {
+                                    //                 globalRepeatTracker[rclass].valid_motif = valid_motif.substr(plen, valid_motif.length()) + valid_motif.substr(0, plen);
+                                    //             }
+                                    //             else {
+                                    //                 string imotif = globalRepeatTracker[rclass].valid_motif;
+                                    //                 globalRepeatTracker[rclass].valid_motif = utils::expand_repeat(imotif, plen).substr(plen-motif_size, plen);
+                                    //             }
+                                    //             globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
+                                    //             globalRepeatTracker[rclass].end = window.count - motif_size;
+                                    //             globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert;
+                                    //             globalRepeatTracker[rclass].mutations += d;
+                                    //             globalRepeatTracker[rclass].interrupt = 0;
+                                    //         }
+                                    //     }
+                                    // }
                                 }
 
                             }
