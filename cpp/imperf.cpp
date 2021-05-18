@@ -21,15 +21,14 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string valid_ins
     uint start = rtracker.start;
     uint end   = rtracker.end;
     uint rlen  = end - start;
-    uint runits = rlen / motif_size;
     uint muts  = rtracker.mutations;
 
     string insert = rtracker.insert;
     uint ilen = insert.length();
-    uint iunits = ilen / motif_size;
     uint m = motif_size;
-    uint min_d = -1;
-    uint s = 0;
+
+    // Final minimum mutations and insert length
+    uint min_d = -1, s = 0;
 
     // if repeat already reached threshold mutations
     if (muts == rlen * fraction_mutations) {
@@ -197,9 +196,6 @@ int main(int argc, char* argv[]) {
     string seq_name;
     utils::SequenceWindow window;
 
-    uint position_offset = 2*motif_size;
-    uint end_offset = motif_size;
-
     while(getline(ins, line)) {
         if (line[0] == '>') {
             seq_name = line.substr(1, line.find(' ')-1);
@@ -207,83 +203,69 @@ int main(int argc, char* argv[]) {
         }
         else {
             for (const auto c: line) {
-                char curr_nuc = toupper(c);
-                window.update(curr_nuc);
+                window.update(toupper(c));
 
-                if (window.count >= position_offset) {
-                    uint position = window.count - position_offset;
-                    curr_nuc = window.sequence[motif_size-1];
+                if (window.count >= motif_size) {
+                    uint position = window.count - motif_size;      // start of the motif
+                    string curr_motif = window.motif;               // current motif
+                    char curr_nuc = window.nuc;                     // current nucleotide i.e., last nucleotide of the motif
                     
                     if (debug) {
-                        cout << "\n\n******************************  Position: " << position << "  ******************************\n";
-                        cout << "Nucleotide: " << curr_nuc << "\n" << "Motif: " << window.motif << "\n";
+                        cout << "\n\n************************  Position: " << position << " Motif: " << curr_motif << "  ************************\n";
                     }
 
-                    string curr_motif = window.motif;
-                    string curr_rclass = utils::get_repeat_class(curr_motif, rClassMap);
-                    uint curr_rclass_first_check = 0;
-                    vector<string> drop_rclasses;
+                    string curr_rclass = utils::get_repeat_class(curr_motif, rClassMap);    // repeat class of current motif
+                    uint curr_rclass_first_check = 0;       // occurrence of repeat class for first time
 
+                    // if repeat class is not encoutered so far
                     if (globalRepeatTracker.find(curr_rclass) == globalRepeatTracker.end()) {
                         curr_rclass_first_check = 1;
                         globalRepeatTracker[curr_rclass] = utils::RepeatTracker();
-                        globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count - motif_size, window.next);
+                        globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count);
                     }
 
+                    vector<string> drop_rclasses;           // list of repeat classes that should be dropped after this iteration
                     std::unordered_map<string, utils::RepeatTracker>::iterator iter = globalRepeatTracker.begin();
                     std::unordered_map<string, utils::RepeatTracker>::iterator end_iter = globalRepeatTracker.end();
                     for(; iter != end_iter; ++iter) {
                         uint drop_rclass = 0;
                         string rclass = iter->first;
-                        globalRepeatTracker[rclass].next_motif = window.next;
+
                         if (debug) { cout << "\n==========  " << rclass << "  ==========\n"; }
                         
                         if (rclass == curr_rclass) {
-                            if (curr_rclass_first_check == 0) {
+                            
+                            // if repeat class is already encountered
+                            if (!curr_rclass_first_check) {
                                 uint rclass_continue = !(globalRepeatTracker[rclass].interrupt);
                                 string valid_motif = globalRepeatTracker[rclass].valid_motif;
-                                char valid_nuc = globalRepeatTracker[rclass].valid_nuc;
-                                if (position < globalRepeatTracker[rclass].end) {
-                                    if (debug && (curr_motif != valid_motif)) {
-                                        cout << "*** Cycle found mid motif ***\n";
-                                        cout << "*** " << valid_motif << " encountered as " << window.motif << " ***\n\n";
-                                    }
+                                
+                                // either valid continuation or cyclical variation is found
+                                // overlapping with the current continuation
+                                if (position <= globalRepeatTracker[rclass].end) {
+                                    if (debug) { cout << "*** Overlapping motif found ***\n"; }
                                     globalRepeatTracker[rclass].interrupt = 0;
                                     globalRepeatTracker[rclass].insert = "";
-                                    globalRepeatTracker[rclass].end = window.count - end_offset;
+                                    globalRepeatTracker[rclass].end = window.count;
                                     globalRepeatTracker[rclass].valid_motif = curr_motif.substr(1) + curr_motif[0];
-                                    globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
                                 }
-                                else if (position == globalRepeatTracker[rclass].end) {
-                                    if (debug && (curr_motif != valid_motif)) {
-                                        cout << "*** Cycle found book ended ***\n";
-                                        cout << "*** " << valid_motif << " encountered as " << curr_motif << " ***\n\n";
-                                    }
-                                    globalRepeatTracker[rclass].interrupt = 0;
-                                    globalRepeatTracker[rclass].insert = "";
-                                    globalRepeatTracker[rclass].end = window.count - end_offset;
-                                    globalRepeatTracker[rclass].valid_motif = curr_motif.substr(1) + curr_motif[0];
-                                    globalRepeatTracker[rclass].valid_nuc = globalRepeatTracker[rclass].valid_motif[0];
-                                }
+
+                                // valid continuation or cyclical variation is found
+                                // after an interruption insertion
                                 else {
-                                    string insert = globalRepeatTracker[rclass].insert;
-                                    uint insert_len = insert.length();
-                                    string valid_insert = "";
-                                    if (debug && (curr_motif != valid_motif)) {
-                                        cout << "*** Cycle found after insertion: " << insert << "***\n";
-                                        cout << "*** " << valid_motif << " encountered as " << curr_motif << " ***\n\n";
+                                    if (debug) {
+                                        if (curr_motif == valid_motif) { cout << "*** Motif found after insertion ***\n"; }
+                                        else { cout << "*** Cycle " << curr_motif << " found inplace of " << valid_motif << " ***\n"; }
                                     }
-                                    string cycle = "";
-                                    uint c = 0;
+
+                                    globalRepeatTracker[rclass].insert = globalRepeatTracker[rclass].insert.substr(0, motif_size-1);
+                                    string cycle = ""; uint c = 0;
                                     for (; c < motif_size; c++) {
                                         cycle = valid_motif.substr(c) + valid_motif.substr(0, c);
                                         if (cycle == window.motif) { break; }
                                     }
-                                    valid_insert = valid_motif.substr(0,c) + cycle;
-                                    
-                                    if (debug) {
-                                        cout << "*** Match " << insert.substr(0, insert_len-motif_size) << " with " << valid_insert << " ***\n";
-                                    }
+                                    string valid_insert = valid_motif.substr(0,c) + cycle;
+
                                     uint terminate = 0;
                                     vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_insert, terminate);
                                     uint d = insertion_result[0];

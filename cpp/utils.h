@@ -20,60 +20,62 @@ namespace utils {
 
     /* Data structure tracking the window sequence */
     struct SequenceWindow {
-        string sequence = "AAAAAAAAAAAA";
         string motif = "AAAAAA";
-        string next = "AAAAAA";
         char nuc = 'A';
         uint count = 0;
         SequenceWindow() { reset(); }
+
+        /* Resets the sequence window to initial values */
         void reset() {
-            sequence = "AAAAAAAAAAAA";
-            motif = next = "AAAAAA";
-            count = 0;
+            motif = "AAAAAA";
+            nuc = 'A'; count = 0;
         }
-        void update(char a) {
-            nuc = a; count += 1;
-            sequence = sequence.substr(1) + a;
-            motif = sequence.substr(0, 6);
-            next = sequence.substr(6, 6);
+        /* 
+         * Updates the sequence window with the current motif
+         * @param n nucleotide
+         */
+        void update(char n) {
+            nuc = n; count += 1;
+            motif = motif.substr(1) + n;
         }
     };
 
     /* Data structure for tracking repeat of a repeat class */
     struct RepeatTracker {
         uint start = 0, end = 0;                // start and end of repeat
-        char valid_nuc = 'A';                   // next valid nucleotide
-        string valid_motif   = "AAAAAA";        // last valid continuation
+        string valid_motif   = "AAAAAA";        // valid continuation of repeat
         string insert = "";                     // insert sequence
         string repeat = "";                     // complete repeat sequence
         string curr_motif = "";                 // current motif in the sequence
-        string next_motif = "";                 // next motif in the sequence
         uint mutations = 0;                     // number of mutations
         bool interrupt = true;                  // interruption status
-        RepeatTracker() {
-            initialise("AAAAAA", 0, 0, "AAAAAA");
-        }
-        void initialise(string motif, uint start_pos, uint end_pos, string nmotif) {
+        RepeatTracker() { initialise("AAAAAA", 0, 0); }
+        
+        /* 
+         * Initialises a new Repeat Tracker
+         * @param motif motif sequence
+         * @param start_pos start position of the repeat
+         * @param end_pos end position of the repeat
+         */
+        void initialise(string motif, uint start_pos, uint end_pos) {
             start = start_pos, end = end_pos;
             valid_motif = motif.substr(1) + motif[0];
             curr_motif = motif;
-            next_motif = nmotif;
-            valid_nuc = motif[0];
             repeat = motif;
             insert = "";
             mutations = 0;
             interrupt = 0;
         }
+
+        /* Prints out the Repeat Tracker status */
         void print() {
             cout << "Repeat start:     " << start << "\n";
             cout << "Repeat end:       " << end << "\n";
             cout << "Valid motif:      " << valid_motif << "\n";
-            cout << "Valid nucleotide: " << valid_nuc << "\n";
             cout << "Insertion:        " << insert << "\n";
             cout << "Mutations:        " << mutations << "\n";
             cout << "Repeat Sequence:  " << repeat << "\n";
             cout << "Current motif:    " << curr_motif << "\n";
-            cout << "Next motif:       " << next_motif << "\n";
             cout << "Continue:         " << !(interrupt) << "\n";
         }
     };
