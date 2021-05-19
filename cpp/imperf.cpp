@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include "utils.h"
 
-#include "levenshtein.h"
 using namespace std;
 using namespace utils;
 
@@ -15,6 +14,11 @@ const uint motif_size = 6;
 const float fraction_mutations = 0.1;
 uint debug = 0;
 
+
+int i4_min ( int i1, int i2 ) {
+  if ( i1 < i2 ) { return i1; }
+  else { return i2; }
+}
 
 vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string valid_insert, uint terminate) {
 
@@ -136,6 +140,7 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string valid_ins
         }
         return { min_d, s, terminate };
     }
+    
     // if the sequence is an extension
     else {
         uint idx = z-1, min_idx = z-1, row_min = -1;
