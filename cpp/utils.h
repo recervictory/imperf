@@ -23,11 +23,12 @@ namespace utils {
         string motif = "AAAAAA";
         char nuc = 'A';
         uint count = 0;
-        SequenceWindow() { reset(); }
+        SequenceWindow(uint motif_size) { reset(motif_size); }
 
         /* Resets the sequence window to initial values */
-        void reset() {
-            motif = "AAAAAA";
+        void reset(uint motif_size) {
+            motif = "";
+            for(uint i=0; i<motif_size; i++) { motif += "A"; }
             nuc = 'A'; count = 0;
         }
         /* 
@@ -46,7 +47,6 @@ namespace utils {
         string valid_motif   = "AAAAAA";        // valid continuation of repeat
         string insert = "";                     // insert sequence
         string repeat = "";                     // complete repeat sequence
-        string curr_motif = "";                 // current motif in the sequence
         uint mutations = 0;                     // number of mutations
         bool interrupt = true;                  // interruption status
         RepeatTracker() { initialise("AAAAAA", 0, 0); }
@@ -59,9 +59,8 @@ namespace utils {
          */
         void initialise(string motif, uint start_pos, uint end_pos) {
             start = start_pos, end = end_pos;
-            valid_motif = motif.substr(1) + motif[0];
-            curr_motif = motif;
             repeat = motif;
+            valid_motif = motif.substr(1) + motif[0];
             insert = "";
             mutations = 0;
             interrupt = 0;
@@ -75,7 +74,6 @@ namespace utils {
             cout << "Insertion:        " << insert << "\n";
             cout << "Mutations:        " << mutations << "\n";
             cout << "Repeat Sequence:  " << repeat << "\n";
-            cout << "Current motif:    " << curr_motif << "\n";
             cout << "Continue:         " << !(interrupt) << "\n";
         }
     };
@@ -287,50 +285,6 @@ namespace utils {
             if (!check) { a.push_back(i); vsize += 1;}
         }
         return a;
-    }
-
-
-    /*
-     *  Converts a 2-bit string to nucleotide sequence
-     *  @param seq 64-bit integer representing 2-bit string of the sequence
-     *  @param l length of the DNA sequence
-     *  @return string of the nucleotide sequence
-    */ 
-    inline string bit2base(uint64_t seq, int l, int m) {
-        string nuc = "";
-        uint64_t fetch = 3ull << 2*(l-1);
-        uint64_t c;
-        int shift = 2*(l-1) ;
-        for (int i=0; i<m; ++i) {
-            c = (seq & fetch) >> shift;
-            switch(c) {
-                case 0: nuc+= "A"; break;
-                case 1: nuc+= "C"; break;
-                case 2: nuc+= "G"; break;
-                case 3: nuc+= "T"; break;
-                default: continue;
-            }
-            shift -= 2; fetch >>= 2;
-        }
-        return nuc;
-    }
-
-
-    /*
-     *  Calculates the reverse complement of a DNA 2-bit string
-     *  @param seq 64-bit integer representing 2-bit string of the sequence
-     *  @param l length of the DNA sequence
-     *  @return a 64-bit integer representing the reverse complement
-    */
-    inline uint64_t bit_reverse_complement(uint64_t seq, int l) {
-        uint64_t rc = 0ull;
-        uint64_t const NORM = ~(0ull) >> 2*(32-l);
-        bitset<64> norm (NORM);
-        seq = ~(seq); seq = seq & NORM;
-        for (int i=0; i<l; i++) { 
-            rc += (seq & 3ull) << 2*(l-1-i); seq = seq >> 2;
-        }
-        return rc;
     }
 
     /*
