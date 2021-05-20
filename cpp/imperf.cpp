@@ -93,16 +93,20 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string valid_ins
     // if the sequence is an insertion
     if (!terminate) {
 
-        // Check if the insert matches with valid insert within remaining mutations
-        int idx = z-1;
-        uint min_idx = z-1, row_min = -1;
+        // Calculate the edit distance of the insert from valid insert sequence
+        int idx = z-1, min_idx = z-1;
+        uint row_min = -1;
         for(; idx>=(x+1)*y; idx=idx-motif_size) {
             int mut = d_matrix[idx];
             if (mut < row_min) { row_min = mut; min_idx = idx; }
         }
 
+        // If the minimum number of mutations is greater than the insert length
+        // then minimum number of mutations equal the insert length
         if (row_min > ilen) { row_min = ilen; }
 
+        // If the minimum mutations is greater than the remaining mutations
+        // Terminate the repeat within allowed number of mutations
         if (row_min > remain_muts) {
             idx = z-1, min_idx = z-1, row_min = -1;
             for (; idx>=0; idx--) {
@@ -110,9 +114,38 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string valid_ins
                 if (mut < row_min) { row_min = mut; min_idx = idx; }
                 if (idx % (x+1) == 0) {
                     uint dynamic_insert_len = idx / (x+1);
-                    if (dynamic_insert_len < row_min) { row_min = dynamic_insert_len; }
+                    if (row_min > dynamic_insert_len) { row_min = dynamic_insert_len; }
                     uint dynamic_remain_muts = ((rlen + dynamic_insert_len )*fraction_mutations) - muts;
+                    if (debug) {
+                        cout << "\nDynamic insert length: " << dynamic_insert_len << "\n";
+                        cout << "Dynamic remaining mutations: " << dynamic_remain_muts << "\n";
+                        cout << "Minimum mutations: " << row_min << "\n";
+                    }
                     if (row_min <= dynamic_remain_muts) {
+                        if (debug) {
+                            cout << "\nMinimum mutations: " << row_min << " at " << min_idx << "\n";
+                            cout << "Greedy insert length: " << min_idx / (x+1) << "\n";
+                            cout << "Greedy repeat length: " << min_idx % (x+1) << "\n\n";
+                        }
+                        int a = min_idx;
+                        int b = row_min;
+                        while (a >= (x+2)) {
+                            b = d_matrix[a];
+                            if (debug) {
+                                cout << "Comparing indexes " << a << " and " << (a - (x+2)) << "\n";
+                                cout << "Comparing mutations " << b << " and " << d_matrix[a - (x+2)] << "\n\n";
+                            }
+                            if (d_matrix[a - (x+2)] == b) {
+                                if (debug) {
+                                    cout << "Non-greedy insert length: " << a / (x+1) << "\n";
+                                    cout << "Non-greedy repeat length: " << a % (x+1) << "\n";
+                                }
+                                break;
+                            }
+                            else { a = a - (x + 2); }
+                        }
+                        if (a < (x+2)) { min_idx = 0; row_min = 0; }
+                        else { min_idx = a; row_min = b; }
                         break;
                     } 
                 }
@@ -151,7 +184,36 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string valid_ins
                 uint dynamic_insert_len = idx / (x+1);
                 if (dynamic_insert_len < row_min) { row_min = dynamic_insert_len; }
                 uint dynamic_remain_muts = ((rlen + dynamic_insert_len )*fraction_mutations) - muts;
+                if (debug) {
+                    cout << "\nDynamic insert length: " << dynamic_insert_len << "\n";
+                    cout << "Dynamic remaining mutations: " << dynamic_remain_muts << "\n";
+                    cout << "Minimum mutations: " << row_min << "\n";
+                }
                 if (row_min <= dynamic_remain_muts) {
+                    if (debug) {
+                        cout << "Minimum mutations: " << row_min << " at " << min_idx << "\n";
+                        cout << "Greedy insert length: " << min_idx / (x+1) << "\n";
+                        cout << "Greedy repeat length: " << min_idx % (x+1) << "\n\n";
+                    }
+                    int a = min_idx;
+                    int b = row_min;
+                    while (a >= (x+2)) {
+                        b = d_matrix[a];
+                        if (debug) {
+                            cout << "Comparing indexes " << a << " and " << (a - (x+2)) << "\n";
+                            cout << "Comparing mutations " << b << " and " << d_matrix[a - (x+2)] << "\n\n";
+                        }
+                        if (d_matrix[a - (x+2)] == b) {
+                            if (debug) {
+                                cout << "Non-greedy insert length: " << a / (x+1) << "\n";
+                                cout << "Non-greedy repeat length: " << a % (x+1) << "\n";
+                            }
+                            break;
+                        }
+                        else { a = a - (x + 2); }
+                    }
+                    if (a < (x+2)) { min_idx = 0; row_min = 0; }
+                    else { min_idx = a; row_min = b; }
                     break;
                 } 
             }
@@ -293,7 +355,7 @@ int main(int argc, char* argv[]) {
                                         uint rlen = end - start;
                                         uint muts = globalRepeatTracker[rclass].mutations;
                                         string repeat = globalRepeatTracker[rclass].repeat;
-                                        if (rlen > 12) {
+                                        if (rlen >= 12) {
                                             if (debug) { cout << "*** Valid repeat ***\n"; }
                                             cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
                                             rclass << "\t" << muts << "\t" << repeat << "\n"; 
@@ -358,7 +420,7 @@ int main(int argc, char* argv[]) {
                                         uint rlen = end - start;
                                         uint muts = globalRepeatTracker[rclass].mutations;
                                         string repeat = globalRepeatTracker[rclass].repeat;
-                                        if (rlen > 12) {
+                                        if (rlen >= 12) {
                                             if (debug) { cout << "*** Valid repeat ***\n"; }
                                             cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
                                             rclass << "\t" << muts << "\t" << repeat << "\n"; 
@@ -418,7 +480,7 @@ int main(int argc, char* argv[]) {
                                     string repeat = globalRepeatTracker[rclass].repeat;
 
                                     if (terminate) {
-                                        if (rlen > 12) {
+                                        if (rlen >= 12) {
                                             if (debug) { cout << "*** Valid repeat ***\n"; }
                                             cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
                                             rclass << "\t" << muts << "\t" << repeat << "\n"; 
