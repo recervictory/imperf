@@ -18,6 +18,17 @@ using namespace chrono;
 
 namespace utils {
 
+    /*
+     *  Indentifies the minimum of two integers
+     *  @param i1 interger-1
+     *  @param i1 interger-2
+     *  @return minimum of the two integers
+    */
+    int min_int ( int i1, int i2 ) {
+        if ( i1 < i2 ) { return i1; }
+        else { return i2; }
+    }
+
     /* Data structure tracking the window sequence */
     struct SequenceWindow {
         string motif = "AAAAAA";
@@ -122,6 +133,7 @@ namespace utils {
         }
         return expanded_repeat;
     }
+
 
     /* Data structure to store compound repeat */
     struct compoundRepeat {
