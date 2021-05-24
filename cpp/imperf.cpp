@@ -284,6 +284,7 @@ void sequence_termination(string seq_name) {
     }
 }
 
+
 int main(int argc, char* argv[]) {
     string fin = argv[1];
     string line;
@@ -308,19 +309,27 @@ int main(int argc, char* argv[]) {
                     uint position = window.count - motif_size;      // start of the motif
                     string curr_motif = window.motif;               // current motif
                     char curr_nuc = window.nuc;                     // current nucleotide i.e., last nucleotide of the motif
-                    
+                    string curr_rclass = "";
+                    uint curr_rclass_first_check = 1;
+
                     if (debug) {
                         cout << "\n\n************************  Position: " << position << " Motif: " << curr_motif << "  ************************\n";
                     }
 
-                    string curr_rclass = utils::get_repeat_class(curr_motif, rClassMap);    // repeat class of current motif
-                    uint curr_rclass_first_check = 0;       // occurrence of repeat class for first time
+                    if (curr_nuc == 'N') {
+                        curr_rclass = "N";
+                        curr_rclass_first_check = 0;
+                    }
+                    else {
+                        curr_rclass = utils::get_repeat_class(curr_motif, rClassMap);    // repeat class of current motif
+                        uint curr_rclass_first_check = 0;       // occurrence of repeat class for first time
 
-                    // if repeat class is not encoutered so far
-                    if (globalRepeatTracker.find(curr_rclass) == globalRepeatTracker.end()) {
-                        curr_rclass_first_check = 1;
-                        globalRepeatTracker[curr_rclass] = utils::RepeatTracker();
-                        globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count);
+                        // if repeat class is not encoutered so far
+                        if (globalRepeatTracker.find(curr_rclass) == globalRepeatTracker.end()) {
+                            curr_rclass_first_check = 1;
+                            globalRepeatTracker[curr_rclass] = utils::RepeatTracker();
+                            globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count);
+                        }
                     }
 
                     vector<string> drop_rclasses;           // list of repeat classes that should be dropped after this iteration
