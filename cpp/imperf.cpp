@@ -12,7 +12,7 @@ unordered_map<string, string> rClassMap;
 unordered_map<string, utils::RepeatTracker> globalRepeatTracker;
 const uint motif_size = 6;
 const float fraction_mutations = 0.1;
-const bool debug = 0;
+const bool debug = 1;
 
 /*
  *  Indentifies the optimal length of insert within allowed mutations by looking
@@ -232,16 +232,55 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
             cout << "*** Valid repeat length: " << vir_len << " ***\n";
             cout << "*** Mutations: " << least_muts << " ***\n";
         }
-        if (final_ilen == ilen && least_muts < remain_muts) {
-            if (debug) { cout << "-+++- Continuation -+++-\n"; }
-            terminate = 0;
-            uint c = vir_len % motif_size;
-            return { least_muts, final_ilen, terminate, c };
-        }
-        else {
+        // if (final_ilen == ilen && least_muts < remain_muts) {
+        //     if (debug) { cout << "-+++- Continuation -+++-\n"; }
+        //     terminate = 0;
+        //     uint c = vir_len % motif_size;
+        //     return { least_muts, final_ilen, terminate, c };
+        // }
+        // else {
             if (debug) { cout << "-xxx- Termination -xxx-\n"; }
+            terminate = 1;
             return { least_muts, final_ilen, terminate };
-        }
+        // }
+    }
+}
+
+
+/*
+ *  Handle the termination of sequence, report all valid repeats
+ *  @param seq_name name/id of the sequence
+ *  @return none prints out all occurrences of valid repeats
+*/
+void sequence_termination(string seq_name) {
+    vector<string> drop_rclasses;
+    std::unordered_map<string, utils::RepeatTracker>::iterator iter = globalRepeatTracker.begin();
+    std::unordered_map<string, utils::RepeatTracker>::iterator end_iter = globalRepeatTracker.end();
+    for(; iter != end_iter; ++iter) {
+        string rclass = iter->first;
+        string valid_motif = globalRepeatTracker[rclass].valid_motif;
+        uint terminal = 1;
+        vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
+        uint least_muts = insertion_result[0];
+        uint final_ilen = insertion_result[1];
+        uint terminate = insertion_result[2];
+        globalRepeatTracker[rclass].end += final_ilen;
+        globalRepeatTracker[rclass].mutations += least_muts;
+        globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, final_ilen);
+        uint start = globalRepeatTracker[rclass].start;
+        uint end = globalRepeatTracker[rclass].end;
+        uint rlen = end - start;
+        uint muts = globalRepeatTracker[rclass].mutations;
+        string repeat = globalRepeatTracker[rclass].repeat;
+        if (rlen >= 12) {
+            if (debug) { cout << "*** Valid repeat ***\n"; }
+            cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
+            rclass << "\t" << muts << "\t" << repeat << "\n"; 
+        } 
+        drop_rclasses.push_back(rclass);
+    }
+    for (uint j=0; j<drop_rclasses.size(); j++) {
+        globalRepeatTracker.erase(drop_rclasses[j]);
     }
 }
 
@@ -255,35 +294,7 @@ int main(int argc, char* argv[]) {
     while(getline(ins, line)) {
         if (line[0] == '>') {
             // terminate all current repeats
-            vector<string> drop_rclasses;
-            std::unordered_map<string, utils::RepeatTracker>::iterator iter = globalRepeatTracker.begin();
-            std::unordered_map<string, utils::RepeatTracker>::iterator end_iter = globalRepeatTracker.end();
-            for(; iter != end_iter; ++iter) {
-                string rclass = iter->first;
-                string valid_motif = globalRepeatTracker[rclass].valid_motif;
-                uint terminal = 1;
-                vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
-                uint least_muts = insertion_result[0];
-                uint final_ilen = insertion_result[1];
-                uint terminate = insertion_result[2];
-                globalRepeatTracker[rclass].end += final_ilen;
-                globalRepeatTracker[rclass].mutations += least_muts;
-                globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, final_ilen);
-                uint start = globalRepeatTracker[rclass].start;
-                uint end = globalRepeatTracker[rclass].end;
-                uint rlen = end - start;
-                uint muts = globalRepeatTracker[rclass].mutations;
-                string repeat = globalRepeatTracker[rclass].repeat;
-                if (rlen >= 12) {
-                    if (debug) { cout << "*** Valid repeat ***\n"; }
-                    cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
-                    rclass << "\t" << muts << "\t" << repeat << "\n"; 
-                } 
-                drop_rclasses.push_back(rclass);
-            }
-            for (uint j=0; j<drop_rclasses.size(); j++) {
-                globalRepeatTracker.erase(drop_rclasses[j]);
-            }
+            sequence_termination(seq_name);
 
             // new sequence initiation
             seq_name = line.substr(1, line.find(' ')-1);
@@ -503,7 +514,7 @@ int main(int argc, char* argv[]) {
 
                                 // if no cyclical variation is found for greater than 4 motif lengths
                                 // or for greater than current repeat length
-                                if ((ilen >= 4*motif_size) || (ilen >= rlen)) {
+                                if ((ilen >= 5*motif_size) || (ilen >= rlen)) {
                                     if (debug) { cout << "*** Threshold insert length ***\n"; }
                                     uint terminal = 1;
                                     vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
@@ -547,5 +558,11 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+    
+    
+    // End of the file
+    // terminate all current repeats
+    sequence_termination(seq_name);
+
     ins.close();
 }
