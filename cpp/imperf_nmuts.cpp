@@ -13,7 +13,7 @@ unordered_map<string, utils::RepeatTracker> globalRepeatTracker;
 // running individually for each motif is faster than
 // running than in parllel
 const uint motif_size = 4;
-const float fraction_mutations = 0.1;
+const uint mutations = 3;
 const bool debug = 0;
 
 /*
@@ -23,17 +23,18 @@ const bool debug = 0;
  *  @param y length of the insert sequence (y-axis of distance matrix)
  *  @param rlen length of the repeat so far
  *  @param muts number of mutations in the repeat so far
- *  @param fraction_mutations float (< 1) allowed mutations as fraction of repeat length
+ *  @param mutations uint allowed number of mutations
  *  @param distance_matrix the distance matrix of insert versus repeat sequence
  *  @param min_idx index in the distance matrix with optimal insert length and mutations (by ref)
  *  @param row_least_mutations least mutations corresponding to the repeat length (by ref)
  *  @return minimum of the two integers
 */
-void optimal_insert(int x, int y, uint rlen, uint muts, float fraction_mutations, int distance_matrix[], int &min_idx, uint &row_least_muts) {
+void optimal_insert(int x, int y, uint rlen, uint muts, uint mutations, int distance_matrix[], int &min_idx, uint &row_least_muts) {
     uint z = (x+1)*(y+1);       // matrix dimensions
     int idx = z-1;              // initialising index
     row_least_muts = -1;        // least mutations of the row i.e., a repeat length
     min_idx = z-1;              // index of matrix at least mutations
+    int remain_muts = mutations - muts;
     for (; idx>=0; idx--) {
         
         int idx_muts = distance_matrix[idx];
@@ -54,16 +55,8 @@ void optimal_insert(int x, int y, uint rlen, uint muts, float fraction_mutations
                 row_least_muts = dynamic_ilen;
             }
 
-            // allowed mutations for dynamic insert length
-            uint dynamic_remain_muts = ((rlen + dynamic_ilen )*fraction_mutations) - muts;
-            if (debug) {
-                cout << "\nDynamic insert length:     " << dynamic_ilen << "\n";
-                cout << "Remaining mutations:         " << dynamic_remain_muts << "\n";
-                cout << "Minimum mutations:           " << row_least_muts << "\n";
-            }
-
             // The least mutations for the insert is in the allowed range of mutations
-            if (row_least_muts <= dynamic_remain_muts) {
+            if (row_least_muts <= remain_muts) {
                 if (debug) {
                     cout << "Least mutations:      " << row_least_muts << " at " << min_idx << "\n";
                     cout << "Greedy insert length: " << min_idx / (x+1) << "\n";
@@ -109,7 +102,7 @@ void optimal_insert(int x, int y, uint rlen, uint muts, float fraction_mutations
  *  @param terminate indicates if the insert is at the terminal end of the repeat
  *  @return vector of insert length, least mutations, signal for repeat termination
 */
-vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif, uint terminal, uint m, float fraction_mutations) {
+vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif, uint terminal, uint m, uint mutations) {
 
     string valid_motif = rtracker.valid_motif;    
     uint start = rtracker.start;
@@ -124,12 +117,12 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
     uint least_muts = -1, final_ilen = 0, terminate = 0;
 
     // if repeat already reached threshold mutations
-    if (muts == rlen * fraction_mutations) {
+    if (muts == mutations) {
         least_muts = 0, final_ilen = 0; terminate = 1;
         return { least_muts, final_ilen, terminate };
     }
 
-    uint threshold_muts = fraction_mutations * (rlen + ilen);
+    uint threshold_muts = mutations;
     int remain_muts  = threshold_muts - muts;
 
     if (debug) {
@@ -203,7 +196,7 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
         // Terminate the repeat within allowed number of mutations
         if (least_muts > remain_muts) {
             min_idx = z-1, least_muts = -1;
-            optimal_insert(x, y, rlen, muts, fraction_mutations, distance_matrix, min_idx, least_muts);
+            optimal_insert(x, y, rlen, muts, mutations, distance_matrix, min_idx, least_muts);
         }
         uint vir_len = min_idx % (x+1);
         final_ilen = min_idx / (x+1);
@@ -226,7 +219,7 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
     // if the sequence is an extension
     else {
         int min_idx = z-1;
-        optimal_insert(x, y, rlen, muts, fraction_mutations, distance_matrix, min_idx, least_muts);
+        optimal_insert(x, y, rlen, muts, mutations, distance_matrix, min_idx, least_muts);
         uint vir_len = min_idx % (x+1);
         final_ilen = min_idx / (x+1);
         if (debug) {
@@ -262,7 +255,7 @@ void sequence_termination(string seq_name) {
         string rclass = iter->first;
         string valid_motif = globalRepeatTracker[rclass].valid_motif;
         uint terminal = 1;
-        vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
+        vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, mutations);
         uint least_muts = insertion_result[0];
         uint final_ilen = insertion_result[1];
         uint terminate = insertion_result[2];
@@ -383,13 +376,13 @@ int main(int argc, char* argv[]) {
                                     uint end = globalRepeatTracker[rclass].end;
                                     uint rlen = end - start;
                                     uint muts = globalRepeatTracker[rclass].mutations;
-                                    int remain_muts = ((window.count - start) * fraction_mutations) - muts;
+                                    int remain_muts = mutations - muts;
 
                                     // if mutations introduced by cyclical variation is greater than allowed
                                     // remaining mutations
                                     if (cycle_muts > remain_muts) {
                                         uint terminal = 1;
-                                        vector<uint> result_vector = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
+                                        vector<uint> result_vector = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, mutations);
                                         uint least_muts = result_vector[0];
                                         uint final_ilen = result_vector[1];
                                         globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, final_ilen);
@@ -453,7 +446,7 @@ int main(int argc, char* argv[]) {
                                     }
                                     string vir_motif = valid_motif.substr(0,c) + cycle;     // valid insert repeat motif
                                     uint terminal = 0;      // non terminal insertion
-                                    vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], vir_motif, terminal, motif_size, fraction_mutations);
+                                    vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], vir_motif, terminal, motif_size, mutations);
                                     uint least_muts = insertion_result[0];
                                     uint final_ilen = insertion_result[1];
                                     uint terminate = insertion_result[2];
@@ -499,7 +492,7 @@ int main(int argc, char* argv[]) {
 
                             if (rclass_continue) {
                                 // if mutations already reached allowed number
-                                if (muts == (rlen * fraction_mutations)) {
+                                if (muts == mutations) {
                                     string repeat = globalRepeatTracker[rclass].repeat;
                                     uint atomicity = utils::check_atomicity(rclass);
                                     if (rlen >= 12) {
@@ -524,10 +517,10 @@ int main(int argc, char* argv[]) {
 
                                 // if no cyclical variation is found for greater than 4 motif lengths
                                 // or for greater than current repeat length
-                                if ((ilen >= 5*motif_size) || (ilen >= rlen)) {
+                                if ((ilen >= mutations*motif_size) || (ilen >= rlen)) {
                                     if (debug) { cout << "*** Threshold insert length ***\n"; }
                                     uint terminal = 1;
-                                    vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
+                                    vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, mutations);
                                     uint least_muts = insertion_result[0];
                                     uint final_ilen = insertion_result[1];
                                     uint terminate = insertion_result[2];

@@ -358,20 +358,16 @@ namespace utils {
 
     /*
      *  Calculates the atomicity of a motif
-     *  @param seq 64-bit integer representing 2-bit string of the sequence
-     *  @param l length of the DNA sequence
-     *  @param m length of the motif size
+     *  @param motif motif sequence
      *  @return atomicity of the motif
     */
-    inline uint check_atomicity(uint64_t seq, uint l, uint m) {
-        seq = seq >> (2*(l-m));
-        for (int i=1; i<m; i++) {
-            if (m%i == 0) {
-                uint64_t D = 0ull; uint d = m/i;
-                for (int j=0; j<d; j++) { D = D << 2*i; D += 1; }
-                if (seq%D == 0) { return i; }
-            }
+    inline uint check_atomicity(string motif) {
+        uint m = motif.length();
+        uint i = 1;
+        for (; i<=m; i++) {
+            string cycle = motif.substr(i, m-i) + motif.substr(0,i);
+            if (cycle == motif) { return i; }
         }
-        return m;
+        return i;
     }
 }
