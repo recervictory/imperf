@@ -123,8 +123,9 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
     // Final minimum mutations and insert length
     uint least_muts = -1, final_ilen = 0, terminate = 0;
 
-    // if repeat already reached threshold mutations
-    if (muts == rlen * fraction_mutations) {
+    // if repeat already reached threshold mutations and the insert 
+    // doesn't increase the threshold number of mutations
+    if ((muts == rlen * fraction_mutations) && (ilen * fraction_mutations < 1)) {
         least_muts = 0, final_ilen = 0; terminate = 1;
         return { least_muts, final_ilen, terminate };
     }
@@ -138,18 +139,24 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
         cout << "\n*** Remaining mutations: " << remain_muts << " ***\n";
     }
 
-    if (remain_muts <= 0) {
-        least_muts = 0; final_ilen = 0; terminate = 1;
-        return { least_muts, final_ilen, terminate };
-    }
+    // As we have already checked if the number of mutations are at the threshold level
+    // and if the insert length allows addition of new mutataions the remaining mutations
+    // should always be greater than 0.
+    // if (remain_muts <= 0) {
+    //     least_muts = 0; final_ilen = 0; terminate = 1;
+    //     return { least_muts, final_ilen, terminate };
+    // }
 
     // virm - valid insert repeat motif
     uint virm_len = vir_motif.length();
     string vir_prefix   = vir_motif.substr(0, virm_len - m);     // perfix part of valid repeat
     string vir_extmotif = vir_motif.substr(virm_len - m, m);     // motif part of valid repeat
 
-    uint vir_maxlen = ilen + remain_muts;
-    string vi_repeat = utils::expand_repeat(vir_extmotif, vir_maxlen);
+    // insert is compared with the maximum allowed length of the repeat
+    // the valid repeat sequence should also contain the prefix sequence
+    uint vir_maxlen = ((ilen + remain_muts - vir_prefix.length())/motif) + 1;
+    string vi_repeat = vir_prefix;
+    for (uint v=0; v<vir_maxlen; v++) { vi_repeat += vir_extmotif; }
     
     int x = vi_repeat.length();         // the x-axis of distance matrix is valid insert repeat
     int y = insert.length();            // the y-axis of distance matrix is insert
@@ -234,17 +241,11 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
             cout << "*** Valid repeat length: " << vir_len << " ***\n";
             cout << "*** Mutations: " << least_muts << " ***\n";
         }
-        // if (final_ilen == ilen && least_muts < remain_muts) {
-        //     if (debug) { cout << "-+++- Continuation -+++-\n"; }
-        //     terminate = 0;
-        //     uint c = vir_len % motif_size;
-        //     return { least_muts, final_ilen, terminate, c };
-        // }
-        // else {
-            if (debug) { cout << "-xxx- Termination -xxx-\n"; }
-            terminate = 1;
-            return { least_muts, final_ilen, terminate };
-        // }
+        
+        if (debug) { cout << "-xxx- Termination -xxx-\n"; }
+        terminate = 1;
+        return { least_muts, final_ilen, terminate };
+            
     }
 }
 
@@ -421,18 +422,6 @@ int main(int argc, char* argv[]) {
                                     }
 
                                 }
-
-                                // if a cyclical variation is found at the end of the previous motif
-                                // else if (position == globalRepeatTracker[rclass].end) {
-                                //     if (debug) {
-                                //         cout << "*** Motif found book ended ***\n";
-                                //     }
-                                //     globalRepeatTracker[rclass].interrupt = 0;
-                                //     globalRepeatTracker[rclass].repeat += (globalRepeatTracker[rclass].insert + curr_nuc);
-                                //     globalRepeatTracker[rclass].insert = "";
-                                //     globalRepeatTracker[rclass].end = window.count;
-                                //     globalRepeatTracker[rclass].valid_motif = curr_motif.substr(1) + curr_motif[0];
-                                // }
 
                                 // valid continuation or cyclical variation is found
                                 // after an interruption by insertion
