@@ -23,22 +23,22 @@ unordered_map<string, utils::RepeatTracker> globalRepeatTracker;
 // running individually for each motif is faster than
 // running than in parllel
 const uint motif_size = 4;
-const float fraction_mutations = 0.125;
+const float fraction_mutations = 0.1;
 const bool debug = 0;
 
     
 /*
-*  Indentifies the optimal length of insert within allowed mutations by looking
-*  at the distance matrix of insert and valid repeat sequence
-*  @param x length of the valid repeat sequence (x-axis of distance matrix)
-*  @param y length of the insert sequence (y-axis of distance matrix)
-*  @param rlen length of the repeat so far
-*  @param muts number of mutations in the repeat so far
-*  @param fraction_mutations float (< 1) allowed mutations as fraction of repeat length
-*  @param distance_matrix the distance matrix of insert versus repeat sequence
-*  @param min_idx index in the distance matrix with optimal insert length and mutations (by ref)
-*  @param row_least_mutations least mutations corresponding to the repeat length (by ref)
-*  @return minimum of the two integers
+ *  Indentifies the optimal length of insert within allowed mutations by looking
+ *  at the distance matrix of insert and valid repeat sequence
+ *  @param x length of the valid repeat sequence (x-axis of distance matrix)
+ *  @param y length of the insert sequence (y-axis of distance matrix)
+ *  @param rlen length of the repeat so far
+ *  @param muts number of mutations in the repeat so far
+ *  @param fraction_mutations float (< 1) allowed mutations as fraction of repeat length
+ *  @param distance_matrix the distance matrix of insert versus repeat sequence
+ *  @param min_idx index in the distance matrix with optimal insert length and mutations (by ref)
+ *  @param row_least_mutations least mutations corresponding to the repeat length (by ref)
+ *  @return minimum of the two integers
 */
 void optimal_insert(int x, int y, uint rlen, uint muts, float fraction_mutations, int distance_matrix[], int &min_idx, uint &row_least_muts) {
     uint z = (x+1)*(y+1);       // matrix dimensions
@@ -124,7 +124,7 @@ vector<uint> backtrack_repeat(utils::RepeatTracker rtracker, uint m, float fract
     for (int i=m-1; i>=0; i--) {
         valid_motif += rtracker.repeat[i];
     }
-
+    
     uint start = rtracker.start;
     uint end   = rtracker.end;
     uint rlen  = end - start;
@@ -244,14 +244,6 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
         cout << "\n*** Remaining mutations: " << remain_muts << " ***\n";
     }
 
-    // As we have already checked if the number of mutations are at the threshold level
-    // and if the insert length allows addition of new mutataions the remaining mutations
-    // should always be greater than 0.
-    // if (remain_muts <= 0) {
-    //     least_muts = 0; final_ilen = 0; terminate = 1;
-    //     return { least_muts, final_ilen, terminate };
-    // }
-
     // virm - valid insert repeat motif
     uint virm_len = vir_motif.length();
     string vir_prefix   = vir_motif.substr(0, virm_len - m);     // perfix part of valid repeat
@@ -311,6 +303,15 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
         // then minimum number of mutations equal the insert length
         if (least_muts > ilen) { least_muts = ilen; }
 
+        uint curr_rlen = rlen + ilen + m;
+        if (curr_rlen < 3*motif_size) {
+            if (debug) {
+                cout << "\n*** This is an early mutation! ***\n";
+            }
+            terminate = 2;
+            return { least_muts, final_ilen, terminate };
+        }
+
         // If the minimum mutations is greater than the remaining mutations
         // Terminate the repeat within allowed number of mutations
         if (least_muts > remain_muts) {
@@ -327,16 +328,16 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
         if (final_ilen < ilen) {
             if (debug) { cout << "-xxx- Mid Termination -xxx-\n"; }
             terminate = 1;
-            vector<uint> upstream_result = backtrack_repeat(rtracker, m, fraction_mutations);
-            uint final_ulen = upstream_result[1];
-            least_muts += upstream_result[0];
-            return { least_muts, final_ilen, terminate, final_ulen };
+            // vector<uint> upstream_result = backtrack_repeat(rtracker, m, fraction_mutations);
+            // uint final_ulen = upstream_result[1];
+            // least_muts += upstream_result[0];
+            // return { least_muts, final_ilen, terminate, final_ulen };
         }
         else {
             if (debug) { cout << "-+++- Continuation -+++-\n"; }
             terminate = 0;
-            return { least_muts, final_ilen, terminate };
         }
+        return { least_muts, final_ilen, terminate };
     }
     
     // if the sequence is an extension
@@ -353,10 +354,11 @@ vector<uint> insertion_mutations(utils::RepeatTracker rtracker, string vir_motif
             cout << "-xxx- Termination -xxx-\n";
         }
 
-        vector<uint> upstream_result = backtrack_repeat(rtracker, m, fraction_mutations);
-        uint final_ulen = upstream_result[1];
-        least_muts += upstream_result[0];
-        return { least_muts, final_ilen, terminate, final_ulen };
+        // vector<uint> upstream_result = backtrack_repeat(rtracker, m, fraction_mutations);
+        // uint final_ulen = upstream_result[1];
+        // least_muts += upstream_result[0];
+        // return { least_muts, final_ilen, terminate, final_ulen };
+        return { least_muts, final_ilen, terminate };
     }
 }
 
@@ -389,8 +391,11 @@ void sequence_termination(string seq_name) {
         uint atomicity = utils::check_atomicity(rclass);
         if (rlen >= 12) {
             if (debug) { cout << "*** Valid repeat ***\n"; }
-            cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
-            rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n"; 
+            // report repeat
+            if (!((rlen < 3*motif_size) && (globalRepeatTracker[rclass].early_mutations > 2))) {
+                cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
+                rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n";
+            }
         } 
         drop_rclasses.push_back(rclass);
     }
@@ -496,30 +501,50 @@ int main(int argc, char* argv[]) {
                                     uint muts = globalRepeatTracker[rclass].mutations;
                                     int remain_muts = ((window.count - start) * fraction_mutations) - muts;
 
+
                                     // if mutations introduced by cyclical variation is greater than allowed
                                     // remaining mutations
                                     if (cycle_muts > remain_muts) {
-                                        uint terminal = 1;
-                                        vector<uint> result_vector = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
-                                        uint least_muts = result_vector[0];
-                                        uint final_ilen = result_vector[1];
-                                        globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, final_ilen);
-                                        globalRepeatTracker[rclass].mutations += least_muts;
-                                        globalRepeatTracker[rclass].end += final_ilen;
-                                        start = globalRepeatTracker[rclass].start;
-                                        end = globalRepeatTracker[rclass].end;
-                                        rlen = end - start;
-                                        muts = globalRepeatTracker[rclass].mutations;
-                                        string repeat = globalRepeatTracker[rclass].repeat;
-                                        uint atomicity = utils::check_atomicity(rclass);
-                                        if (rlen >= 12) {
-                                            if (debug) { cout << "*** Valid repeat ***\n"; }
-                                            cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
-                                            rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n"; 
+                                        
+                                        if ((window.count - start) < 3*motif_size) {
+                                            if (debug) {
+                                                cout << "\n*** This is an early mutation! ***\n";
+                                            }
+                                            globalRepeatTracker[rclass].interrupt = 0;
+                                            globalRepeatTracker[rclass].repeat += (globalRepeatTracker[rclass].insert + curr_nuc);
+                                            globalRepeatTracker[rclass].insert = "";
+                                            globalRepeatTracker[rclass].end = window.count;
+                                            globalRepeatTracker[rclass].valid_motif = curr_motif.substr(1) + curr_motif[0];
+                                            globalRepeatTracker[rclass].early_mutations += cycle_muts;
                                         }
 
-                                        // reinitialse the repeat from here
-                                        globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count, window.upstream);
+                                        else {
+                                            uint terminal = 1;
+                                            vector<uint> result_vector = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
+                                            uint least_muts = result_vector[0];
+                                            uint final_ilen = result_vector[1];
+                                            globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, final_ilen);
+                                            globalRepeatTracker[rclass].mutations += least_muts;
+                                            globalRepeatTracker[rclass].end += final_ilen;
+                                            start = globalRepeatTracker[rclass].start;
+                                            end = globalRepeatTracker[rclass].end;
+                                            rlen = end - start;
+                                            muts = globalRepeatTracker[rclass].mutations;
+                                            string repeat = globalRepeatTracker[rclass].repeat;
+                                            uint atomicity = utils::check_atomicity(rclass);
+                                            if (rlen >= 12) {
+                                                if (debug) { cout << "*** Valid repeat ***\n"; }
+                                                // report repeat
+                                                if (!((rlen < 3*motif_size) && (globalRepeatTracker[rclass].early_mutations > 2))) {
+                                                    cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
+                                                    rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n";
+                                                }
+                                            }
+
+                                            // reinitialse the repeat from here
+                                            globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count, window.upstream);
+                                        }
+
                                     }
                                     
                                     else {
@@ -557,16 +582,32 @@ int main(int argc, char* argv[]) {
                                     uint final_ilen = insertion_result[1];
                                     uint terminate = insertion_result[2];
                                     globalRepeatTracker[rclass].repeat += globalRepeatTracker[rclass].insert.substr(0, final_ilen);
-                                    globalRepeatTracker[rclass].mutations += least_muts;
 
-                                    if (terminate) {
-                                        globalRepeatTracker[rclass].end += final_ilen;
-                                        uint ulen = insertion_result[3];
-                                        globalRepeatTracker[rclass].start -= ulen;
-                                        for (int i=0; i<ulen; i++) {
-                                            globalRepeatTracker[rclass].repeat = globalRepeatTracker[rclass].upstream[i] + globalRepeatTracker[rclass].repeat;
+                                    if (terminate == 2) {
+
+                                        if (debug) {
+                                            if (debug) {
+                                                cout << "\n*** This is an early mutation! ***\n";
+                                            }
                                         }
+
+                                        globalRepeatTracker[rclass].interrupt = 0;
+                                        globalRepeatTracker[rclass].repeat += curr_motif;
+                                        globalRepeatTracker[rclass].insert = "";
+                                        globalRepeatTracker[rclass].end = window.count;
+                                        globalRepeatTracker[rclass].valid_motif = curr_motif.substr(1) + curr_motif[0];
+                                        globalRepeatTracker[rclass].early_mutations += least_muts;
+                                    }
+
+                                    else if (terminate == 1) {
                                         uint start = globalRepeatTracker[rclass].start;
+                                        globalRepeatTracker[rclass].end += final_ilen;
+                                        globalRepeatTracker[rclass].mutations += least_muts;
+                                        // uint ulen = insertion_result[3];
+                                        // globalRepeatTracker[rclass].start -= ulen;
+                                        // for (int i=0; i<ulen; i++) {
+                                        //     globalRepeatTracker[rclass].repeat = globalRepeatTracker[rclass].upstream[i] + globalRepeatTracker[rclass].repeat;
+                                        // }
                                         uint end = globalRepeatTracker[rclass].end;
                                         uint rlen = end - start;
                                         uint muts = globalRepeatTracker[rclass].mutations;
@@ -574,16 +615,21 @@ int main(int argc, char* argv[]) {
                                         uint atomicity = utils::check_atomicity(rclass);
                                         if (rlen >= 12) {
                                             if (debug) { cout << "*** Valid repeat ***\n"; }
-                                            cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
-                                            rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n"; 
+                                            // report repeat
+                                            if (!((rlen < 3*motif_size) && (globalRepeatTracker[rclass].early_mutations > 2))) {
+                                                cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
+                                                rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n";
+                                            }
                                         }
 
                                         // reinitialse the repeat from here
                                         globalRepeatTracker[curr_rclass].initialise(window.motif, position, window.count, window.upstream);
                                     }
+
                                     else {
                                         globalRepeatTracker[rclass].interrupt = 0;
                                         globalRepeatTracker[rclass].insert = "";
+                                        globalRepeatTracker[rclass].mutations += least_muts;
                                         globalRepeatTracker[rclass].end = window.count;
                                         globalRepeatTracker[rclass].valid_motif = curr_motif.substr(1) + curr_motif[0];
                                         globalRepeatTracker[rclass].repeat += curr_motif;
@@ -608,8 +654,11 @@ int main(int argc, char* argv[]) {
                                     uint atomicity = utils::check_atomicity(rclass);
                                     if (rlen >= 12) {
                                         if (debug) { cout << "*** Valid repeat ***\n"; }
-                                        cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
-                                        rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n"; 
+                                        // report repeat
+                                        if (!((rlen < 3*motif_size) && (globalRepeatTracker[rclass].early_mutations > 2))) {
+                                            cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
+                                            rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n";
+                                        }
                                     } 
                                     drop_rclass = 1;
                                 }
@@ -632,11 +681,11 @@ int main(int argc, char* argv[]) {
                                     if (debug) { cout << "*** Threshold insert length ***\n"; }
                                     uint terminal = 1;
                                     vector<uint> insertion_result = insertion_mutations(globalRepeatTracker[rclass], valid_motif, terminal, motif_size, fraction_mutations);
-                                    uint ulen = insertion_result[3];
-                                    globalRepeatTracker[rclass].start -= ulen;
-                                    for (int i=0; i<ulen; i++) {
-                                        globalRepeatTracker[rclass].repeat = globalRepeatTracker[rclass].upstream[i] + globalRepeatTracker[rclass].repeat;
-                                    }
+                                    // uint ulen = insertion_result[3];
+                                    // globalRepeatTracker[rclass].start -= ulen;
+                                    // for (int i=0; i<ulen; i++) {
+                                    //     globalRepeatTracker[rclass].repeat = globalRepeatTracker[rclass].upstream[i] + globalRepeatTracker[rclass].repeat;
+                                    // }
                                     uint least_muts = insertion_result[0];
                                     uint final_ilen = insertion_result[1];
                                     uint terminate = insertion_result[2];
@@ -652,8 +701,11 @@ int main(int argc, char* argv[]) {
                                     uint atomicity = utils::check_atomicity(rclass);
                                     if (rlen >= 12) {
                                         if (debug) { cout << "*** Valid repeat ***\n"; }
-                                        cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
-                                        rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\t" << globalRepeatTracker[rclass].upstream << "\n"; 
+                                        // report repeat
+                                        if (!((rlen < 3*motif_size) && (globalRepeatTracker[rclass].early_mutations > 2))) {
+                                            cout << seq_name << "\t" << start << "\t" << end << "\t" << rlen << "\t" << 
+                                            rclass.substr(0, atomicity) << "\t" << muts << "\t" << repeat << "\n";
+                                        }
                                     } 
                                     drop_rclass = 1;
                                 }

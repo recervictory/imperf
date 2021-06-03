@@ -66,8 +66,9 @@ namespace utils {
         string repeat = "";                     // complete repeat sequence
         string upstream = "";                   // sequence upstream of the repeat
         uint mutations = 0;                     // number of mutations
+        uint early_mutations = 0;               // initial mutations at repeat start
         bool interrupt = true;                  // interruption status
-        RepeatTracker() { initialise("AAAAAA", 0, 0); }
+        RepeatTracker() { initialise("AAAAAA", 0, 0, ""); }
         
         /* 
          * Initialises a new Repeat Tracker
@@ -82,6 +83,7 @@ namespace utils {
             valid_motif = motif.substr(1) + motif[0];
             insert = "";
             mutations = 0;
+            early_mutations = 0;
             interrupt = 0;
         }
 
@@ -92,6 +94,7 @@ namespace utils {
             cout << "Valid motif:       " << valid_motif << "\n";
             cout << "Insertion:         " << insert << "\n";
             cout << "Mutations:         " << mutations << "\n";
+            cout << "Early mutations:   " << early_mutations << "\n";
             cout << "Repeat Sequence:   " << repeat << "\n";
             cout << "Upstream Sequence: " << upstream << "\n";
             cout << "Continue:          " << !(interrupt) << "\n";
