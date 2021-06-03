@@ -1,5 +1,5 @@
 /*
-    Utils: Auxiliary functions for looper.cpp
+    Utils: Auxiliary functions for imperf.cpp
     @file utils.h
     @author Akshay Avvaru
     @version 0.1 06/08/2020
@@ -32,13 +32,14 @@ namespace utils {
     /* Data structure tracking the window sequence */
     struct SequenceWindow {
         string motif = "AAAAAA";
+        string upstream = "AAAAAA";
         char nuc = 'A';
         uint count = 0;
         SequenceWindow(uint motif_size) { reset(motif_size); }
 
         /* Resets the sequence window to initial values */
         void reset(uint motif_size) {
-            motif = "";
+            motif = ""; upstream = "";
             for(uint i=0; i<motif_size; i++) { motif += "A"; }
             nuc = 'A'; count = 0;
         }
@@ -48,6 +49,11 @@ namespace utils {
          */
         void update(char n) {
             nuc = n; count += 1;
+            if (count > motif.length()) {
+                uint ulen = upstream.length();
+                if (ulen < 5*motif.length()) { upstream = motif[0] + upstream; }
+                else { upstream = motif[0] + upstream.substr(0, ulen-1); }
+            }
             motif = motif.substr(1) + n;
         }
     };
@@ -58,6 +64,7 @@ namespace utils {
         string valid_motif   = "AAAAAA";        // valid continuation of repeat
         string insert = "";                     // insert sequence
         string repeat = "";                     // complete repeat sequence
+        string upstream = "";                   // sequence upstream of the repeat
         uint mutations = 0;                     // number of mutations
         bool interrupt = true;                  // interruption status
         RepeatTracker() { initialise("AAAAAA", 0, 0); }
@@ -68,9 +75,10 @@ namespace utils {
          * @param start_pos start position of the repeat
          * @param end_pos end position of the repeat
          */
-        void initialise(string motif, uint start_pos, uint end_pos) {
+        void initialise(string motif, uint start_pos, uint end_pos, string upstream_seq) {
             start = start_pos, end = end_pos;
             repeat = motif;
+            upstream = upstream_seq;
             valid_motif = motif.substr(1) + motif[0];
             insert = "";
             mutations = 0;
@@ -79,13 +87,14 @@ namespace utils {
 
         /* Prints out the Repeat Tracker status */
         void print() {
-            cout << "Repeat start:     " << start << "\n";
-            cout << "Repeat end:       " << end << "\n";
-            cout << "Valid motif:      " << valid_motif << "\n";
-            cout << "Insertion:        " << insert << "\n";
-            cout << "Mutations:        " << mutations << "\n";
-            cout << "Repeat Sequence:  " << repeat << "\n";
-            cout << "Continue:         " << !(interrupt) << "\n";
+            cout << "Repeat start:      " << start << "\n";
+            cout << "Repeat end:        " << end << "\n";
+            cout << "Valid motif:       " << valid_motif << "\n";
+            cout << "Insertion:         " << insert << "\n";
+            cout << "Mutations:         " << mutations << "\n";
+            cout << "Repeat Sequence:   " << repeat << "\n";
+            cout << "Upstream Sequence: " << upstream << "\n";
+            cout << "Continue:          " << !(interrupt) << "\n";
         }
     };
 
